@@ -9,6 +9,7 @@ kaspad.db
 
 # Log files
 *.log
+logs/
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
