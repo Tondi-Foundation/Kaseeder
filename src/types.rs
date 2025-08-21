@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime};
-use std::str::FromStr;
 
 // 使用rusty-kaspa中的NetAddress类型
 pub use kaspa_utils::networking::NetAddress;
@@ -119,52 +118,25 @@ impl Default for CrawlerStats {
     }
 }
 
-// 为NetAddress提供扩展功能的包装器
-#[derive(Debug, Clone)]
-pub struct NetAddressExt(pub NetAddress);
-
-impl NetAddressExt {
-    pub fn from_string(addr: &str) -> Option<NetAddress> {
-        addr.parse::<NetAddress>().ok()
-    }
-
-    pub fn to_string(&self) -> String {
-        format!("{}:{}", self.0.ip, self.0.port)
-    }
-
-    pub fn is_recently_seen(&self, last_seen: SystemTime, threshold: Duration) -> bool {
-        if let Ok(elapsed) = SystemTime::now().duration_since(last_seen) {
-            elapsed < threshold
-        } else {
-            false
-        }
-    }
-
-    pub fn is_good(&self, attempts: u32, successes: u32) -> bool {
-        successes > 0 && attempts < 10
-    }
-
-    pub fn should_retry(&self, last_attempt: Option<SystemTime>, min_interval: Duration) -> bool {
-        if let Some(last_attempt) = last_attempt {
-            if let Ok(elapsed) = SystemTime::now().duration_since(last_attempt) {
-                return elapsed >= min_interval;
-            }
-        }
-        true
-    }
+// 为NetAddress提供便捷方法的扩展trait
+pub trait NetAddressExt {
+    fn from_string(addr: &str) -> Option<Self> where Self: Sized;
+    fn to_string(&self) -> String;
+    fn is_recently_seen(&self, last_seen: SystemTime, threshold: Duration) -> bool;
+    fn is_good(&self, attempts: u32, successes: u32) -> bool;
+    fn should_retry(&self, last_attempt: Option<SystemTime>, min_interval: Duration) -> bool;
 }
 
-// 为NetAddress提供便捷方法
-impl NetAddress {
-    pub fn from_string(addr: &str) -> Option<Self> {
+impl NetAddressExt for NetAddress {
+    fn from_string(addr: &str) -> Option<Self> {
         addr.parse::<NetAddress>().ok()
     }
 
-    pub fn to_string(&self) -> String {
+    fn to_string(&self) -> String {
         format!("{}:{}", self.ip, self.port)
     }
 
-    pub fn is_recently_seen(&self, last_seen: SystemTime, threshold: Duration) -> bool {
+    fn is_recently_seen(&self, last_seen: SystemTime, threshold: Duration) -> bool {
         if let Ok(elapsed) = SystemTime::now().duration_since(last_seen) {
             elapsed < threshold
         } else {
@@ -172,11 +144,11 @@ impl NetAddress {
         }
     }
 
-    pub fn is_good(&self, attempts: u32, successes: u32) -> bool {
+    fn is_good(&self, attempts: u32, successes: u32) -> bool {
         successes > 0 && attempts < 10
     }
 
-    pub fn should_retry(&self, last_attempt: Option<SystemTime>, min_interval: Duration) -> bool {
+    fn should_retry(&self, last_attempt: Option<SystemTime>, min_interval: Duration) -> bool {
         if let Some(last_attempt) = last_attempt {
             if let Ok(elapsed) = SystemTime::now().duration_since(last_attempt) {
                 return elapsed >= min_interval;

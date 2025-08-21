@@ -1,14 +1,15 @@
-use crate::types::{NetAddress, VersionMessage};
+use crate::types::NetAddress;
 use anyhow::Result;
-// 注意：core模块是私有的，我们只能使用公共API
 use kaspa_consensus_core::config::Config as ConsensusConfig;
-use std::net::SocketAddr;
+use kaspa_consensus_core::config::params::Params;
+use kaspa_consensus_core::network::{NetworkId, NetworkType};
 use std::sync::Arc;
+use tracing::{debug, info};
+use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
-use tracing::{debug, info};
 use std::time::Duration;
-
+use crate::VersionMessage;
 /// Kaspa P2P协议处理器
 pub struct KaspaProtocolHandler {
     config: Arc<ConsensusConfig>,
@@ -201,8 +202,23 @@ impl Drop for KaspaConnection {
 
 /// 创建Kaspa共识配置
 pub fn create_consensus_config(testnet: bool, net_suffix: u16) -> Arc<ConsensusConfig> {
-    // 使用默认参数创建配置
-    let config = ConsensusConfig::default();
+    // 根据网络类型和后缀创建正确的网络ID
+    let network_id = if testnet {
+        if net_suffix == 0 {
+            // 默认testnet (testnet-10)
+            NetworkId::with_suffix(NetworkType::Testnet, 10)
+        } else {
+            NetworkId::with_suffix(NetworkType::Testnet, net_suffix as u32)
+        }
+    } else {
+        NetworkId::new(NetworkType::Mainnet)
+    };
+    
+    // 从网络ID创建参数
+    let params = Params::from(network_id);
+    
+    // 创建共识配置
+    let config = ConsensusConfig::new(params);
     
     Arc::new(config)
 }
@@ -210,7 +226,7 @@ pub fn create_consensus_config(testnet: bool, net_suffix: u16) -> Arc<ConsensusC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kaspa_consensus_core::config::Config;
+
 
     #[test]
     fn test_consensus_config_creation() {
@@ -224,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_protocol_handler_creation() {
-        let config = Arc::new(Config::default());
+        let config = create_consensus_config(false, 0);
         let handler = KaspaProtocolHandler::new(config);
         // 验证处理器创建成功
         assert!(true);

@@ -151,7 +151,7 @@ impl ProfilingServer {
     }
 
     async fn stats(State(stats): State<Arc<ProfilingServer>>) -> axum::Json<HashMap<String, String>> {
-        let mut current_stats = (*stats).stats.clone();
+        let mut current_stats = (*stats).stats.as_ref().clone();
         
         // 添加实时统计信息
         current_stats.insert("memory_usage".to_string(), "N/A".to_string());

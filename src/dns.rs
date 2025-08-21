@@ -1,12 +1,11 @@
 use crate::manager::AddressManager;
-use crate::types::{DnsRecord, DnsRecordType, NetAddress};
+use crate::types::{DnsRecord, DnsRecordType};
 use anyhow::Result;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use trust_dns_proto::op::{Message, MessageType, OpCode, ResponseCode};
 use trust_dns_proto::rr::{Record, RecordType};
-use trust_dns_proto::serialize::binary::{BinDecodable, BinEncodable};
 use tracing::{error, info};
 
 pub struct DnsServer {
@@ -69,7 +68,7 @@ impl DnsServer {
             return Ok(());
         }
 
-        let query = request.query().first().ok_or_else(|| {
+        let query = request.query().ok_or_else(|| {
             anyhow::anyhow!("No query in DNS request")
         })?;
 
@@ -144,7 +143,7 @@ impl DnsServer {
             }
             _ => {
                 // 不支持的查询类型
-                response.set_response_code(ResponseCode::NotImplemented);
+                response.set_response_code(ResponseCode::ServFail);
             }
         }
 

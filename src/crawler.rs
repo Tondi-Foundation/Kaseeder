@@ -2,10 +2,10 @@ use crate::config::Config;
 use crate::manager::AddressManager;
 use crate::netadapter::NetworkAdapter;
 use crate::kaspa_protocol::{KaspaProtocolHandler, create_consensus_config};
-use crate::types::{NetAddress, CrawlerStats};
+use crate::types::{NetAddress, CrawlerStats, NetAddressExt};
 use anyhow::Result;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use tokio::time::interval;
 use tracing::{debug, error, info, warn};
 
@@ -23,7 +23,7 @@ impl Crawler {
         network_adapter: Arc<NetworkAdapter>,
         config: Config,
     ) -> Self {
-        // 创建Kaspa共识配置
+        // 创建Kaspa共识配置，参考Go版本的做法
         let consensus_config = create_consensus_config(config.testnet, config.net_suffix);
         let kaspa_protocol_handler = Arc::new(KaspaProtocolHandler::new(consensus_config));
         
@@ -57,7 +57,7 @@ impl Crawler {
                     address_manager, 
                     network_adapter, 
                     kaspa_protocol_handler,
-                    config
+                    &config
                 ).await
             });
             
@@ -88,7 +88,7 @@ impl Crawler {
         if let Some(ref known_peers) = self.config.known_peers {
             let addresses: Vec<NetAddress> = known_peers
                 .split(',')
-                .filter_map(|peer| NetAddress::from_str(peer.trim()).ok())
+                .filter_map(|peer| NetAddress::from_string(peer.trim()))
                 .collect();
             
             if !addresses.is_empty() {
@@ -99,7 +99,7 @@ impl Crawler {
                 for address in addresses {
                     self.address_manager.mark_attempt(&address);
                     if let Err(e) = self.kaspa_protocol_handler.poll_node(&address).await {
-                        warn!("Failed to poll known peer {}: {}", address.to_string(), e);
+                        warn!("Failed to poll known peer {}: {}", NetAddressExt::to_string(&address), e);
                     } else {
                         self.address_manager.mark_success(&address, None, None);
                     }
@@ -109,12 +109,12 @@ impl Crawler {
         
         // 如果有种子节点，也添加到地址管理器
         if let Some(ref seeder) = self.config.seeder {
-            if let Ok(address) = NetAddress::from_str(seeder) {
+            if let Some(address) = NetAddress::from_string(seeder) {
                 self.address_manager.add_address(address.clone());
                 self.address_manager.mark_attempt(&address);
                 
                 if let Err(e) = self.kaspa_protocol_handler.poll_node(&address).await {
-                    warn!("Failed to poll seeder {}: {}", address.to_string(), e);
+                    warn!("Failed to poll seeder {}: {}", NetAddressExt::to_string(&address), e);
                 } else {
                     self.address_manager.mark_success(&address, None, None);
                 }
@@ -127,9 +127,9 @@ impl Crawler {
     async fn crawler_thread(
         thread_id: u8,
         address_manager: Arc<AddressManager>,
-        network_adapter: Arc<NetworkAdapter>,
+        _network_adapter: Arc<NetworkAdapter>,
         kaspa_protocol_handler: Arc<KaspaProtocolHandler>,
-        config: Config,
+        config: &Config,
     ) -> Result<()> {
         info!("Crawler thread {} started", thread_id);
         
@@ -149,9 +149,9 @@ impl Crawler {
             let addresses_to_poll: Vec<NetAddress> = addresses
                 .into_iter()
                 .filter(|addr| {
-                    let key = addr.to_string();
+                    let key = NetAddressExt::to_string(addr);
                     if let Some(entry) = address_manager.get_address_entry(&key) {
-                        entry.should_retry(Duration::from_secs(300)) // 5分钟间隔
+                        entry.value().should_retry(Duration::from_secs(300)) // 5分钟间隔
                     } else {
                         true
                     }
@@ -193,7 +193,7 @@ impl Crawler {
         address: NetAddress,
         address_manager: Arc<AddressManager>,
         kaspa_protocol_handler: Arc<KaspaProtocolHandler>,
-        config: Config,
+        _config: Config,
     ) -> Result<()> {
         address_manager.mark_attempt(&address);
         
@@ -202,21 +202,21 @@ impl Crawler {
                 // 轮询成功，添加新地址
                 if !new_addresses.is_empty() {
                     let added = address_manager.add_addresses(new_addresses);
-                    debug!("Peer {} sent {} new addresses", address.to_string(), added);
+                    debug!("Peer {} sent {} new addresses", NetAddressExt::to_string(&address), added);
                 }
                 
                 // 标记为成功
                 address_manager.mark_success(&address, None, None);
             }
             Err(e) => {
-                debug!("Failed to poll peer {}: {}", address.to_string(), e);
+                debug!("Failed to poll peer {}: {}", NetAddressExt::to_string(&address), e);
                 
                 // 如果失败次数过多，考虑移除地址
-                let key = address.to_string();
+                let key = NetAddressExt::to_string(&address);
                 if let Some(entry) = address_manager.get_address_entry(&key) {
                     let addr_entry = entry.value();
                     if addr_entry.attempts > 5 && addr_entry.successes == 0 {
-                        warn!("Removing persistently failing peer: {}", address.to_string());
+                        warn!("Removing persistently failing peer: {}", NetAddressExt::to_string(&address));
                         address_manager.remove_address(&address);
                     }
                 }

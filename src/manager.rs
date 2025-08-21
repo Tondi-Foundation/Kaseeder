@@ -39,6 +39,10 @@ impl AddressEntry {
         }
     }
 
+    pub fn key(&self) -> String {
+        format!("{}:{}", self.address.ip, self.address.port)
+    }
+
     pub fn mark_attempt(&mut self) {
         self.last_attempt = Some(SystemTime::now());
         self.attempts += 1;
@@ -213,8 +217,8 @@ impl AddressManager {
             })
             .collect();
         
-        for key in stale_keys {
-            if let Some((_, _)) = self.addresses.remove(&key) {
+        for key in &stale_keys {
+            if let Some((_, _)) = self.addresses.remove(key) {
                 self.db.remove(key.as_bytes()).ok();
             }
         }
@@ -288,7 +292,7 @@ impl AddressManager {
     }
 
     // 提供对addresses字段的访问
-    pub fn get_address_entry(&self, key: &str) -> Option<dashmap::mapref::Ref<String, AddressEntry>> {
+    pub fn get_address_entry(&self, key: &str) -> Option<dashmap::mapref::one::Ref<String, AddressEntry>> {
         self.addresses.get(key)
     }
 }

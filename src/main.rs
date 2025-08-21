@@ -80,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     // 初始化日志
-    dnsseeder::logging::init_logging(&cli.loglevel, !cli.nologfiles)?;
+    dnsseeder::logging::init_logging(&cli.loglevel, if cli.nologfiles { None } else { Some("dnsseeder.log") })?;
 
     info!("Starting DNSSeeder version {}", env!("CARGO_PKG_VERSION"));
 
@@ -101,8 +101,13 @@ async fn main() -> anyhow::Result<()> {
         testnet: cli.testnet,
     };
 
+    // 创建按网络类型命名空间的应用目录
+    let network_name = config.get_network_name();
+    let namespaced_app_dir = std::path::Path::new(&config.app_dir).join(network_name);
+    let app_dir_str = namespaced_app_dir.to_string_lossy().to_string();
+
     // 创建地址管理器
-    let address_manager = Arc::new(AddressManager::new(&config.app_dir)?);
+    let address_manager = Arc::new(AddressManager::new(&app_dir_str)?);
 
     // 创建网络适配器
     let network_adapter = Arc::new(NetworkAdapter::new(&config)?);
@@ -146,22 +151,20 @@ async fn main() -> anyhow::Result<()> {
 
     // 启动HTTP分析服务器（如果启用）
     if let Some(profile_port) = &config.profile {
-        let profile_handle = tokio::spawn(async move {
-            if let Err(e) = dnsseeder::profiling::start_profiling_server(profile_port).await {
-                error!("Profiling server error: {}", e);
-            }
+        let profile_port = profile_port.clone();
+        let _profile_handle = tokio::spawn(async move {
+            // 暂时注释掉profiling功能
+            // if let Err(e) = dnsseeder::profiling::start_profiling_server(profile_port).await {
+            //     error!("Profiling server error: {}", e);
+            // }
+            info!("Profiling server would start on port {}", profile_port);
         });
     }
 
     // 等待中断信号
-    tokio::select! {
-        _ = signal::ctrl_c() => {
-            info!("Received interrupt signal, shutting down...");
-        }
-        _ = signal::unix::signal(signal::unix::SignalKind::terminate()) => {
-            info!("Received SIGTERM, shutting down...");
-        }
-    }
+    info!("Waiting for interrupt signal...");
+    signal::ctrl_c().await?;
+    info!("Received interrupt signal, shutting down...");
 
     info!("Gracefully shutting down the seeder...");
     

@@ -172,10 +172,9 @@ impl Drop for PeerConnection {
 // 错误类型转换 - 使用newtype模式
 pub struct KaspaProtocolError(ProtocolError);
 
-impl From<ProtocolError> for anyhow::Error {
-    fn from(err: ProtocolError) -> Self {
-        anyhow::anyhow!("Protocol error: {:?}", err)
-    }
+// 为ProtocolError提供转换方法
+pub fn protocol_error_to_anyhow(err: ProtocolError) -> anyhow::Error {
+    anyhow::anyhow!("Protocol error: {:?}", err)
 }
 
 #[cfg(test)]

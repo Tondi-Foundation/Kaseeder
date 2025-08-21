@@ -49,14 +49,36 @@ impl Config {
 
     pub fn get_network_params(&self) -> NetworkParams {
         if self.testnet {
+            // 根据 net_suffix 决定端口，参考 Go 版本的逻辑
+            let default_port = if self.net_suffix == 11 {
+                16311 // testnet-11 的特殊端口
+            } else {
+                16110 // 其他测试网的默认端口
+            };
+            
             NetworkParams::Testnet {
                 suffix: self.net_suffix,
-                default_port: 16110,
+                default_port,
             }
         } else {
             NetworkParams::Mainnet {
                 default_port: 16111,
             }
+        }
+    }
+
+    /// 获取网络名称，用于应用目录命名空间
+    pub fn get_network_name(&self) -> String {
+        if self.testnet {
+            if self.net_suffix == 11 {
+                "kaspa-testnet-11".to_string()
+            } else if self.net_suffix == 0 {
+                "kaspa-testnet-10".to_string()  // 默认 testnet
+            } else {
+                format!("kaspa-testnet-{}", self.net_suffix)
+            }
+        } else {
+            "kaspa-mainnet".to_string()
         }
     }
 }
