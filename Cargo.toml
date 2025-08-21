@@ -1,8 +1,8 @@
 [package]
-name = "dnsseeder"
+name = "kaseeder"
 version = "0.1.0"
 edition = "2024"
-authors = ["DNSSeeder Team"]
+authors = ["kaseeder Team"]
 description = "DNS seeder for Kaspa network"
 license = "ISC"
 

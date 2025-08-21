@@ -7,13 +7,13 @@ use tonic::{transport::Server, Request, Response, Status};
 use tracing::info;
 
 // Include generated protobuf code
-pub mod dnsseeder {
-    tonic::include_proto!("dnsseeder");
+pub mod kaseeder {
+    tonic::include_proto!("kaseeder");
 }
 
-use dnsseeder::{
-    dns_seeder_service_server::{
-        DnsSeederService as DnsSeederServiceTrait, DnsSeederServiceServer,
+use kaseeder::{
+    kaseeder_service_server::{
+        KaseederService as KaseederServiceTrait, KaseederServiceServer,
     },
     health_check_response::Status as HealthStatus,
     GetAddressStatsRequest, GetAddressStatsResponse, GetAddressesRequest, GetAddressesResponse,
@@ -36,8 +36,8 @@ impl GrpcServer {
         let addr: std::net::SocketAddr = listen_addr.parse()?;
         info!("Starting gRPC server on {}", addr);
 
-        let service = DnsSeederServiceImpl::new(self.address_manager.clone());
-        let server = DnsSeederServiceServer::new(service);
+        let service = KaseederServiceImpl::new(self.address_manager.clone());
+        let server = KaseederServiceServer::new(service);
 
         Server::builder()
             .add_service(server)
@@ -106,12 +106,12 @@ impl GrpcServer {
 }
 
 /// gRPC service implementation
-pub struct DnsSeederServiceImpl {
+pub struct KaseederServiceImpl {
     address_manager: Arc<AddressManager>,
     start_time: SystemTime,
 }
 
-impl DnsSeederServiceImpl {
+impl KaseederServiceImpl {
     pub fn new(address_manager: Arc<AddressManager>) -> Self {
         Self {
             address_manager,
@@ -121,7 +121,7 @@ impl DnsSeederServiceImpl {
 }
 
 #[tonic::async_trait]
-impl DnsSeederServiceTrait for DnsSeederServiceImpl {
+impl KaseederServiceTrait for KaseederServiceImpl {
     async fn get_addresses(
         &self,
         request: Request<GetAddressesRequest>,
@@ -153,7 +153,7 @@ impl DnsSeederServiceTrait for DnsSeederServiceImpl {
             );
             for addr in ipv4_addresses {
                 if addr.ip.is_ipv4() && addresses.len() < limit {
-                    addresses.push(dnsseeder::NetAddress {
+                    addresses.push(kaseeder::NetAddress {
                         ip: addr.ip.to_string(),
                         port: addr.port as u32,
                         last_seen: 0,               // TODO: Implement timestamp
@@ -177,7 +177,7 @@ impl DnsSeederServiceTrait for DnsSeederServiceImpl {
             );
             for addr in ipv6_addresses {
                 if addr.ip.is_ipv6() && addresses.len() < limit {
-                    addresses.push(dnsseeder::NetAddress {
+                    addresses.push(kaseeder::NetAddress {
                         ip: addr.ip.to_string(),
                         port: addr.port as u32,
                         last_seen: 0,               // TODO: Implement timestamp

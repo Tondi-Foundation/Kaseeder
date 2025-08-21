@@ -1,6 +1,6 @@
 cargo:rerun-if-changed=src/keccakf1600_x86-64.s
 cargo:rerun-if-changed=src/keccakf1600_x86-64-osx.s
-OUT_DIR = Some(/home/arthur/AvatoLabs/dnsseeder/target/release/build/kaspa-hashes-583bc187e856ba63/out)
+OUT_DIR = Some(/home/arthur/AvatoLabs/kaseeder/target/release/build/kaspa-hashes-583bc187e856ba63/out)
 OPT_LEVEL = Some(3)
 TARGET = Some(x86_64-unknown-linux-gnu)
 HOST = Some(x86_64-unknown-linux-gnu)
@@ -45,4 +45,4 @@ ARFLAGS_x86_64_unknown_linux_gnu = None
 cargo:rerun-if-env-changed=ARFLAGS_x86_64-unknown-linux-gnu
 ARFLAGS_x86_64-unknown-linux-gnu = None
 cargo:rustc-link-lib=static=keccak
-cargo:rustc-link-search=native=/home/arthur/AvatoLabs/dnsseeder/target/release/build/kaspa-hashes-583bc187e856ba63/out
+cargo:rustc-link-search=native=/home/arthur/AvatoLabs/kaseeder/target/release/build/kaspa-hashes-583bc187e856ba63/out

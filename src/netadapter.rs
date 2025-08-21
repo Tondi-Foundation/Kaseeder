@@ -18,12 +18,12 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 /// DNS seeder connection initializer, specifically for address collection
-pub struct DnsSeederConnectionInitializer {
+pub struct KaseederConnectionInitializer {
     version_message: VersionMessage,
     addresses_tx: mpsc::Sender<Vec<NetAddress>>,
 }
 
-impl DnsSeederConnectionInitializer {
+impl KaseederConnectionInitializer {
     pub fn new(
         consensus_config: &ConsensusConfig,
         addresses_tx: mpsc::Sender<Vec<NetAddress>>,
@@ -34,7 +34,7 @@ impl DnsSeederConnectionInitializer {
             timestamp: unix_now() as i64,
             address: None,
             id: Vec::from(Uuid::new_v4().as_bytes()),
-            user_agent: "/kaspa-dnsseeder:0.1.0/".to_string(),
+            user_agent: "/kaspa-kaseeder:0.1.0/".to_string(),
             disable_relay_tx: true,
             subnetwork_id: None,
             network: consensus_config.params.network_name().to_string(),
@@ -48,7 +48,7 @@ impl DnsSeederConnectionInitializer {
 }
 
 #[async_trait]
-impl ConnectionInitializer for DnsSeederConnectionInitializer {
+impl ConnectionInitializer for KaseederConnectionInitializer {
     async fn initialize_connection(&self, router: Arc<Router>) -> Result<(), ProtocolError> {
         // 1. Subscribe to handshake messages and start the router
         let mut handshake = KaspadHandshake::new(&router);
@@ -102,7 +102,7 @@ impl ConnectionInitializer for DnsSeederConnectionInitializer {
     }
 }
 
-impl DnsSeederConnectionInitializer {
+impl KaseederConnectionInitializer {
     async fn handle_addresses_response(
         mut addresses_receiver: IncomingRoute,
         addresses_tx: mpsc::Sender<Vec<NetAddress>>,
@@ -164,7 +164,7 @@ impl DnsseedNetAdapter {
     pub fn new(consensus_config: Arc<ConsensusConfig>) -> Result<Self> {
         let (addresses_tx, addresses_rx) = mpsc::channel(100);
 
-        let initializer = Arc::new(DnsSeederConnectionInitializer::new(
+        let initializer = Arc::new(KaseederConnectionInitializer::new(
             &consensus_config,
             addresses_tx,
         ));

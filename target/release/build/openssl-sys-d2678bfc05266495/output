@@ -56,7 +56,7 @@ cargo:rustc-link-search=native=/usr/lib64
 cargo:include=/usr/include/openssl
 cargo:rerun-if-changed=build/expando.c
 OPT_LEVEL = Some(3)
-OUT_DIR = Some(/home/arthur/AvatoLabs/dnsseeder/target/release/build/openssl-sys-d2678bfc05266495/out)
+OUT_DIR = Some(/home/arthur/AvatoLabs/kaseeder/target/release/build/openssl-sys-d2678bfc05266495/out)
 TARGET = Some(x86_64-unknown-linux-gnu)
 HOST = Some(x86_64-unknown-linux-gnu)
 cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu

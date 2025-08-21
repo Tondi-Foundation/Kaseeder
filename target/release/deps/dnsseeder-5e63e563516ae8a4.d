@@ -1,6 +1,6 @@
-/home/arthur/AvatoLabs/dnsseeder/target/release/deps/dnsseeder-5e63e563516ae8a4.d: src/main.rs
+/home/arthur/AvatoLabs/kaseeder/target/release/deps/kaseeder-5e63e563516ae8a4.d: src/main.rs
 
-/home/arthur/AvatoLabs/dnsseeder/target/release/deps/dnsseeder-5e63e563516ae8a4: src/main.rs
+/home/arthur/AvatoLabs/kaseeder/target/release/deps/kaseeder-5e63e563516ae8a4: src/main.rs
 
 src/main.rs:
 

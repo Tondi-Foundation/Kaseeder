@@ -1,2 +1,2 @@
-cargo:rerun-if-changed=proto/dnsseeder.proto
+cargo:rerun-if-changed=proto/kaseeder.proto
 cargo:rerun-if-changed=proto

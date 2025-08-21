@@ -12,7 +12,7 @@ cargo:rerun-if-env-changed=CARGO_CFG_TARGET_OS
 cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ENV
 cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ENDIAN
 OPT_LEVEL = Some(3)
-OUT_DIR = Some(/home/arthur/AvatoLabs/dnsseeder/target/release/build/ring-f07320f14d4aade3/out)
+OUT_DIR = Some(/home/arthur/AvatoLabs/kaseeder/target/release/build/ring-f07320f14d4aade3/out)
 TARGET = Some(x86_64-unknown-linux-gnu)
 HOST = Some(x86_64-unknown-linux-gnu)
 cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu
@@ -68,7 +68,7 @@ exit status: 0
 exit status: 0
 cargo:rustc-link-lib=static=ring_core_0_17_14_
 OPT_LEVEL = Some(3)
-OUT_DIR = Some(/home/arthur/AvatoLabs/dnsseeder/target/release/build/ring-f07320f14d4aade3/out)
+OUT_DIR = Some(/home/arthur/AvatoLabs/kaseeder/target/release/build/ring-f07320f14d4aade3/out)
 TARGET = Some(x86_64-unknown-linux-gnu)
 HOST = Some(x86_64-unknown-linux-gnu)
 cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu
@@ -94,7 +94,7 @@ cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
 CFLAGS_x86_64-unknown-linux-gnu = None
 CARGO_ENCODED_RUSTFLAGS = Some()
 cargo:rustc-link-lib=static=ring_core_0_17_14__test
-cargo:rustc-link-search=native=/home/arthur/AvatoLabs/dnsseeder/target/release/build/ring-f07320f14d4aade3/out
+cargo:rustc-link-search=native=/home/arthur/AvatoLabs/kaseeder/target/release/build/ring-f07320f14d4aade3/out
 cargo:rerun-if-changed=crypto/chacha/asm/chacha-armv4.pl
 cargo:rerun-if-changed=crypto/chacha/asm/chacha-armv8.pl
 cargo:rerun-if-changed=crypto/chacha/asm/chacha-x86.pl

@@ -36,7 +36,7 @@ pub fn init_logging(log_level: &str, log_file: Option<&str>) -> Result<()> {
         }
 
         // Create regular log file rolling writer
-        let log_appender = rolling::daily("logs", "dnsseeder");
+        let log_appender = rolling::daily("logs", "kaseeder");
         let (non_blocking_log_appender, _log_guard) = non_blocking(log_appender);
 
         // Regular log file output layer
@@ -79,7 +79,7 @@ pub fn log_error(error: &anyhow::Error, context: &str) {
     if let Ok(mut error_file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open("logs/dnsseeder_error.log")
+        .open("logs/kaseeder_error.log")
     {
         use std::io::Write;
         let _ = writeln!(error_file, "{}", error_details);
@@ -102,7 +102,7 @@ pub fn log_warning(warning: &str, context: &str) {
     if let Ok(mut error_file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open("logs/dnsseeder_error.log")
+        .open("logs/kaseeder_error.log")
     {
         use std::io::Write;
         let _ = writeln!(error_file, "{}", warning_details);

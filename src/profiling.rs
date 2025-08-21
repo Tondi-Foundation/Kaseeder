@@ -172,7 +172,7 @@ impl ProfilingServer {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>DNSSeeder Profiling</title>
+    <title>kaseeder Profiling</title>
     <style>
         body {{ font-family: Arial, sans-serif; margin: 20px; }}
         .metric {{ margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }}
@@ -182,7 +182,7 @@ impl ProfilingServer {
     </style>
 </head>
 <body>
-    <h1>DNSSeeder Performance Metrics</h1>
+    <h1>kaseeder Performance Metrics</h1>
     
     <div class="metric">
         <h3>Uptime</h3>

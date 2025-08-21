@@ -38,8 +38,8 @@ The DNS seeder consists of several key components:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-org/dnsseeder.git
-   cd dnsseeder
+   git clone https://github.com/your-org/kaseeder.git
+   cd kaseeder
    ```
 
 2. **Build the project:**
@@ -49,20 +49,20 @@ The DNS seeder consists of several key components:
 
 3. **Create configuration file:**
    ```bash
-   cp dnsseeder.conf.example dnsseeder.conf
-   # Edit dnsseeder.conf with your settings
+   cp kaseeder.conf.example kaseeder.conf
+   # Edit kaseeder.conf with your settings
    ```
 
 4. **Run the DNS seeder:**
    ```bash
-   ./target/release/dnsseeder -c dnsseeder.conf
+   ./target/release/kaseeder -c kaseeder.conf
    ```
 
 ## Configuration
 
 ### Basic Configuration
 
-Create a `dnsseeder.conf` file with the following settings:
+Create a `kaseeder.conf` file with the following settings:
 
 ```toml
 # DNS Server Configuration
@@ -120,7 +120,7 @@ profile = "8080"
 ### Command Line Options
 
 ```bash
-./target/release/dnsseeder [OPTIONS]
+./target/release/kaseeder [OPTIONS]
 
 Options:
   -c, --config <FILE>          Configuration file path
@@ -160,13 +160,13 @@ The gRPC server provides programmatic access to peer information:
 
 ```bash
 # Get peer addresses
-grpcurl -plaintext localhost:50051 dnsseeder.DnsSeederService/GetAddresses
+grpcurl -plaintext localhost:50051 kaseeder.KaseederService/GetAddresses
 
 # Get statistics
-grpcurl -plaintext localhost:50051 dnsseeder.DnsSeederService/GetStats
+grpcurl -plaintext localhost:50051 kaseeder.KaseederService/GetStats
 
 # Health check
-grpcurl -plaintext localhost:50051 dnsseeder.DnsSeederService/HealthCheck
+grpcurl -plaintext localhost:50051 kaseeder.KaseederService/HealthCheck
 ```
 
 ## Deployment
@@ -196,21 +196,21 @@ grpcurl -plaintext localhost:50051 dnsseeder.DnsSeederService/HealthCheck
 
 ```bash
 # Build Docker image
-docker build -t dnsseeder .
+docker build -t kaseeder .
 
 # Run container
 docker run -d \
-  --name dnsseeder \
+  --name kaseeder \
   -p 53:53/udp \
   -p 50051:50051 \
   -v /path/to/config:/app/config \
   -v /path/to/data:/app/data \
-  dnsseeder
+  kaseeder
 ```
 
 ### Systemd Service
 
-Create `/etc/systemd/system/dnsseeder.service`:
+Create `/etc/systemd/system/kaseeder.service`:
 
 ```ini
 [Unit]
@@ -219,9 +219,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=dnsseeder
-WorkingDirectory=/opt/dnsseeder
-ExecStart=/opt/dnsseeder/dnsseeder -c /opt/dnsseeder/dnsseeder.conf
+User=kaseeder
+WorkingDirectory=/opt/kaseeder
+ExecStart=/opt/kaseeder/kaseeder -c /opt/kaseeder/kaseeder.conf
 Restart=always
 RestartSec=10
 
@@ -259,8 +259,8 @@ src/
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/dnsseeder.git
-cd dnsseeder
+git clone https://github.com/your-org/kaseeder.git
+cd kaseeder
 
 # Install dependencies
 cargo build
@@ -269,7 +269,7 @@ cargo build
 cargo test
 
 # Run with specific features
-cargo run --release -- -c config/dnsseeder.conf
+cargo run --release -- -c config/kaseeder.conf
 ```
 
 ### Testing
@@ -301,7 +301,7 @@ The DNS server responds to standard DNS queries and provides peer addresses for 
 
 ### gRPC Service
 
-**Service:** `dnsseeder.DnsSeederService`
+**Service:** `kaseeder.KaseederService`
 
 **Methods:**
 - `GetAddresses` - Retrieve peer addresses
@@ -370,7 +370,7 @@ Built-in performance profiling capabilities:
 Enable debug logging for troubleshooting:
 
 ```bash
-./target/release/dnsseeder -c dnsseeder.conf --log-level debug
+./target/release/kaseeder -c kaseeder.conf --log-level debug
 ```
 
 ### Performance Analysis
@@ -378,7 +378,7 @@ Enable debug logging for troubleshooting:
 Enable performance profiling:
 
 ```bash
-./target/release/dnsseeder -c dnsseeder.conf --profile 8080
+./target/release/kaseeder -c kaseeder.conf --profile 8080
 ```
 
 Then access profiling data at `http://localhost:8080`

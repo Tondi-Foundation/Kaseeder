@@ -1,19 +1,19 @@
 version: '3.8'
 
 services:
-  dnsseeder:
+  kaseeder:
     build: .
-    container_name: dnsseeder
+    container_name: kaseeder
     restart: unless-stopped
     ports:
       - "5354:5354"  # DNS service port
       - "3737:3737"  # gRPC/HTTP API port
       - "8080:8080"  # Profiling port (optional)
     volumes:
-      - dnsseeder_data:/app/data
-      - dnsseeder_logs:/app/logs
+      - kaseeder_data:/app/data
+      - kaseeder_logs:/app/logs
     environment:
-      - RUST_LOG=dnsseeder=info
+      - RUST_LOG=kaseeder=info
     command: >
       -H seed.example.com
       -n ns.example.com
@@ -25,7 +25,7 @@ services:
       --loglevel info
       --appdir /app/data
     networks:
-      - dnsseeder_net
+      - kaseeder_net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3737/health"]
       interval: 30s
@@ -34,19 +34,19 @@ services:
       start_period: 40s
 
   # Testnet version (optional)
-  dnsseeder-testnet:
+  kaseeder-testnet:
     build: .
-    container_name: dnsseeder-testnet
+    container_name: kaseeder-testnet
     restart: unless-stopped
     ports:
       - "5355:5354"  # Use different port to avoid conflicts
       - "3738:3737"
       - "8081:8080"
     volumes:
-      - dnsseeder_testnet_data:/app/data
-      - dnsseeder_testnet_logs:/app/logs
+      - kaseeder_testnet_data:/app/data
+      - kaseeder_testnet_logs:/app/logs
     environment:
-      - RUST_LOG=dnsseeder=info
+      - RUST_LOG=kaseeder=info
     command: >
       -H seed-testnet.example.com
       -n ns-testnet.example.com
@@ -60,22 +60,22 @@ services:
       --loglevel info
       --appdir /app/data
     networks:
-      - dnsseeder_net
+      - kaseeder_net
     profiles:
       - testnet
 
 volumes:
-  dnsseeder_data:
+  kaseeder_data:
     driver: local
-  dnsseeder_logs:
+  kaseeder_logs:
     driver: local
-  dnsseeder_testnet_data:
+  kaseeder_testnet_data:
     driver: local
-  dnsseeder_testnet_logs:
+  kaseeder_testnet_logs:
     driver: local
 
 networks:
-  dnsseeder_net:
+  kaseeder_net:
     driver: bridge
     ipam:
       config:

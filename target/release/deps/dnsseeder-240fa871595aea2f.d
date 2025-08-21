@@ -1,6 +1,6 @@
-/home/arthur/AvatoLabs/dnsseeder/target/release/deps/dnsseeder-240fa871595aea2f.d: src/main.rs
+/home/arthur/AvatoLabs/kaseeder/target/release/deps/kaseeder-240fa871595aea2f.d: src/main.rs
 
-/home/arthur/AvatoLabs/dnsseeder/target/release/deps/dnsseeder-240fa871595aea2f: src/main.rs
+/home/arthur/AvatoLabs/kaseeder/target/release/deps/kaseeder-240fa871595aea2f: src/main.rs
 
 src/main.rs:
 

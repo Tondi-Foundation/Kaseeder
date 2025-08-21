@@ -36,7 +36,7 @@ impl VersionInfo {
 
     pub fn to_string(&self) -> String {
         format!(
-            "DNSSeeder v{} (commit: {}, built: {}, rust: {})",
+            "kaseeder v{} (commit: {}, built: {}, rust: {})",
             self.version, self.git_commit, self.build_date, self.rust_version
         )
     }
@@ -85,7 +85,7 @@ mod tests {
     fn test_version_info_to_string() {
         let version_info = VersionInfo::new();
         let version_string = version_info.to_string();
-        assert!(version_string.contains("DNSSeeder"));
+        assert!(version_string.contains("kaseeder"));
         assert!(version_string.contains(&version_info.version));
     }
 }

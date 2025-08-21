@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
-WORKDIR /usr/src/dnsseeder
+WORKDIR /usr/src/kaseeder
 
 # Copy Cargo files
 COPY Cargo.toml Cargo.lock ./
@@ -34,20 +34,20 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN groupadd -r dnsseeder && useradd -r -g dnsseeder dnsseeder
+RUN groupadd -r kaseeder && useradd -r -g kaseeder kaseeder
 
 # Create necessary directories
 RUN mkdir -p /app/data /app/logs && \
-    chown -R dnsseeder:dnsseeder /app
+    chown -R kaseeder:kaseeder /app
 
 # Copy binary file
-COPY --from=builder /usr/src/dnsseeder/target/release/dnsseeder /usr/local/bin/
+COPY --from=builder /usr/src/kaseeder/target/release/kaseeder /usr/local/bin/
 
 # Set permissions
-RUN chmod +x /usr/local/bin/dnsseeder
+RUN chmod +x /usr/local/bin/kaseeder
 
 # Switch to non-root user
-USER dnsseeder
+USER kaseeder
 
 # Set working directory
 WORKDIR /app
@@ -60,7 +60,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3737/health || exit 1
 
 # Default command
-ENTRYPOINT ["dnsseeder"]
+ENTRYPOINT ["kaseeder"]
 
 # Default arguments
 CMD ["--help"]

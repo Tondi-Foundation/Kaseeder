@@ -132,16 +132,16 @@ pub struct NetAddress {
     pub protocol_version: u32,
 }
 /// Generated client implementations.
-pub mod dns_seeder_service_client {
+pub mod kaseeder_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     /// DNS seeder service definition
     #[derive(Debug, Clone)]
-    pub struct DnsSeederServiceClient<T> {
+    pub struct KaseederServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl DnsSeederServiceClient<tonic::transport::Channel> {
+    impl KaseederServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -152,7 +152,7 @@ pub mod dns_seeder_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> DnsSeederServiceClient<T>
+    impl<T> KaseederServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -170,7 +170,7 @@ pub mod dns_seeder_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> DnsSeederServiceClient<InterceptedService<T, F>>
+        ) -> KaseederServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -184,7 +184,7 @@ pub mod dns_seeder_service_client {
                 http::Request<tonic::body::BoxBody>,
             >>::Error: Into<StdError> + Send + Sync,
         {
-            DnsSeederServiceClient::new(InterceptedService::new(inner, interceptor))
+            KaseederServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -236,11 +236,11 @@ pub mod dns_seeder_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/dnsseeder.DnsSeederService/GetAddresses",
+                "/kaseeder.KaseederService/GetAddresses",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("dnsseeder.DnsSeederService", "GetAddresses"));
+                .insert(GrpcMethod::new("kaseeder.KaseederService", "GetAddresses"));
             self.inner.unary(req, path, codec).await
         }
         /// Get statistics
@@ -262,11 +262,11 @@ pub mod dns_seeder_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/dnsseeder.DnsSeederService/GetStats",
+                "/kaseeder.KaseederService/GetStats",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("dnsseeder.DnsSeederService", "GetStats"));
+                .insert(GrpcMethod::new("kaseeder.KaseederService", "GetStats"));
             self.inner.unary(req, path, codec).await
         }
         /// Get address statistics
@@ -288,12 +288,12 @@ pub mod dns_seeder_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/dnsseeder.DnsSeederService/GetAddressStats",
+                "/kaseeder.KaseederService/GetAddressStats",
             );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(
-                    GrpcMethod::new("dnsseeder.DnsSeederService", "GetAddressStats"),
+                    GrpcMethod::new("kaseeder.KaseederService", "GetAddressStats"),
                 );
             self.inner.unary(req, path, codec).await
         }
@@ -316,22 +316,22 @@ pub mod dns_seeder_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/dnsseeder.DnsSeederService/HealthCheck",
+                "/kaseeder.KaseederService/HealthCheck",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("dnsseeder.DnsSeederService", "HealthCheck"));
+                .insert(GrpcMethod::new("kaseeder.KaseederService", "HealthCheck"));
             self.inner.unary(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod dns_seeder_service_server {
+pub mod kaseeder_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with DnsSeederServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with KaseederServiceServer.
     #[async_trait]
-    pub trait DnsSeederService: Send + Sync + 'static {
+    pub trait KaseederService: Send + Sync + 'static {
         /// Get address list
         async fn get_addresses(
             &self,
@@ -367,7 +367,7 @@ pub mod dns_seeder_service_server {
     }
     /// DNS seeder service definition
     #[derive(Debug)]
-    pub struct DnsSeederServiceServer<T: DnsSeederService> {
+    pub struct KaseederServiceServer<T: KaseederService> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
@@ -375,7 +375,7 @@ pub mod dns_seeder_service_server {
         max_encoding_message_size: Option<usize>,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: DnsSeederService> DnsSeederServiceServer<T> {
+    impl<T: KaseederService> KaseederServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -427,9 +427,9 @@ pub mod dns_seeder_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for DnsSeederServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for KaseederServiceServer<T>
     where
-        T: DnsSeederService,
+        T: KaseederService,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -445,11 +445,11 @@ pub mod dns_seeder_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/dnsseeder.DnsSeederService/GetAddresses" => {
+                "/kaseeder.KaseederService/GetAddresses" => {
                     #[allow(non_camel_case_types)]
-                    struct GetAddressesSvc<T: DnsSeederService>(pub Arc<T>);
+                    struct GetAddressesSvc<T: KaseederService>(pub Arc<T>);
                     impl<
-                        T: DnsSeederService,
+                        T: KaseederService,
                     > tonic::server::UnaryService<super::GetAddressesRequest>
                     for GetAddressesSvc<T> {
                         type Response = super::GetAddressesResponse;
@@ -463,7 +463,7 @@ pub mod dns_seeder_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DnsSeederService>::get_addresses(&inner, request)
+                                <T as KaseederService>::get_addresses(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -492,11 +492,11 @@ pub mod dns_seeder_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/dnsseeder.DnsSeederService/GetStats" => {
+                "/kaseeder.KaseederService/GetStats" => {
                     #[allow(non_camel_case_types)]
-                    struct GetStatsSvc<T: DnsSeederService>(pub Arc<T>);
+                    struct GetStatsSvc<T: KaseederService>(pub Arc<T>);
                     impl<
-                        T: DnsSeederService,
+                        T: KaseederService,
                     > tonic::server::UnaryService<super::GetStatsRequest>
                     for GetStatsSvc<T> {
                         type Response = super::GetStatsResponse;
@@ -510,7 +510,7 @@ pub mod dns_seeder_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DnsSeederService>::get_stats(&inner, request).await
+                                <T as KaseederService>::get_stats(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -538,11 +538,11 @@ pub mod dns_seeder_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/dnsseeder.DnsSeederService/GetAddressStats" => {
+                "/kaseeder.KaseederService/GetAddressStats" => {
                     #[allow(non_camel_case_types)]
-                    struct GetAddressStatsSvc<T: DnsSeederService>(pub Arc<T>);
+                    struct GetAddressStatsSvc<T: KaseederService>(pub Arc<T>);
                     impl<
-                        T: DnsSeederService,
+                        T: KaseederService,
                     > tonic::server::UnaryService<super::GetAddressStatsRequest>
                     for GetAddressStatsSvc<T> {
                         type Response = super::GetAddressStatsResponse;
@@ -556,7 +556,7 @@ pub mod dns_seeder_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DnsSeederService>::get_address_stats(&inner, request)
+                                <T as KaseederService>::get_address_stats(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -585,11 +585,11 @@ pub mod dns_seeder_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/dnsseeder.DnsSeederService/HealthCheck" => {
+                "/kaseeder.KaseederService/HealthCheck" => {
                     #[allow(non_camel_case_types)]
-                    struct HealthCheckSvc<T: DnsSeederService>(pub Arc<T>);
+                    struct HealthCheckSvc<T: KaseederService>(pub Arc<T>);
                     impl<
-                        T: DnsSeederService,
+                        T: KaseederService,
                     > tonic::server::UnaryService<super::HealthCheckRequest>
                     for HealthCheckSvc<T> {
                         type Response = super::HealthCheckResponse;
@@ -603,7 +603,7 @@ pub mod dns_seeder_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DnsSeederService>::health_check(&inner, request).await
+                                <T as KaseederService>::health_check(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -646,7 +646,7 @@ pub mod dns_seeder_service_server {
             }
         }
     }
-    impl<T: DnsSeederService> Clone for DnsSeederServiceServer<T> {
+    impl<T: KaseederService> Clone for KaseederServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -658,7 +658,7 @@ pub mod dns_seeder_service_server {
             }
         }
     }
-    impl<T: DnsSeederService> Clone for _Inner<T> {
+    impl<T: KaseederService> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(Arc::clone(&self.0))
         }
@@ -668,7 +668,7 @@ pub mod dns_seeder_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: DnsSeederService> tonic::server::NamedService for DnsSeederServiceServer<T> {
-        const NAME: &'static str = "dnsseeder.DnsSeederService";
+    impl<T: KaseederService> tonic::server::NamedService for KaseederServiceServer<T> {
+        const NAME: &'static str = "kaseeder.KaseederService";
     }
 }

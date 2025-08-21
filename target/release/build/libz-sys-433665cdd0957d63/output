@@ -55,7 +55,7 @@ ARFLAGS_x86_64_unknown_linux_gnu = None
 cargo:rerun-if-env-changed=ARFLAGS_x86_64-unknown-linux-gnu
 ARFLAGS_x86_64-unknown-linux-gnu = None
 cargo:rustc-link-lib=static=z
-cargo:rustc-link-search=native=/home/arthur/AvatoLabs/dnsseeder/target/release/build/libz-sys-433665cdd0957d63/out/lib
-cargo:root=/home/arthur/AvatoLabs/dnsseeder/target/release/build/libz-sys-433665cdd0957d63/out
-cargo:rustc-link-search=native=/home/arthur/AvatoLabs/dnsseeder/target/release/build/libz-sys-433665cdd0957d63/out/lib
-cargo:include=/home/arthur/AvatoLabs/dnsseeder/target/release/build/libz-sys-433665cdd0957d63/out/include
+cargo:rustc-link-search=native=/home/arthur/AvatoLabs/kaseeder/target/release/build/libz-sys-433665cdd0957d63/out/lib
+cargo:root=/home/arthur/AvatoLabs/kaseeder/target/release/build/libz-sys-433665cdd0957d63/out
+cargo:rustc-link-search=native=/home/arthur/AvatoLabs/kaseeder/target/release/build/libz-sys-433665cdd0957d63/out/lib
+cargo:include=/home/arthur/AvatoLabs/kaseeder/target/release/build/libz-sys-433665cdd0957d63/out/include

@@ -1,0 +1,40 @@
+# kaseeder configuration file example
+# Copy this file to kaseeder.conf and modify as needed
+
+# DNS server configuration
+host = "seed.kaspa.org"
+nameserver = "ns1.kaspa.org"
+listen = "0.0.0.0:53"
+
+# gRPC server configuration
+grpc_listen = "0.0.0.0:50051"
+
+# Application configuration
+app_dir = "./data"
+threads = 8
+
+# Network configuration
+testnet = false
+net_suffix = 0
+
+# Seeder node configuration
+# seeder = "127.0.0.1:16111"
+# known_peers = "192.168.1.100:16111,192.168.1.101:16111"
+
+# Version requirements
+min_proto_ver = 0
+# min_ua_ver = "0.12.0"
+
+# Proxy configuration (optional)
+# If proxy is not needed, comment out or delete these lines
+proxy_enabled = true
+proxy_url = "http://127.0.0.1:7897"
+proxy_timeout = 5
+
+# Logging configuration
+log_level = "info"
+nologfiles = false
+# error_log_file = "logs/kaseeder_error.log"
+
+# Profiling
+# profile = "8080"

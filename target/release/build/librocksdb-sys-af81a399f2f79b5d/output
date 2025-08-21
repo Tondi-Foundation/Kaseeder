@@ -192,6 +192,14 @@ exit status: 0
 exit status: 0
 exit status: 0
 exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
+exit status: 0
 cargo:warning=rocksdb/port/mmap.cc:46:15: warning: first argument in call to 'memcpy' is a pointer to non-trivially copyable type 'rocksdb::MemMapping' [-Wnontrivial-memcall]
 cargo:warning=   46 |   std::memcpy(this, &other, sizeof(*this));
 cargo:warning=      |               ^
@@ -199,14 +207,6 @@ cargo:warning=rocksdb/port/mmap.cc:46:15: note: explicitly cast the pointer to s
 cargo:warning=   46 |   std::memcpy(this, &other, sizeof(*this));
 cargo:warning=      |               ^
 cargo:warning=      |               (void*)
-exit status: 0
-exit status: 0
-exit status: 0
-exit status: 0
-exit status: 0
-exit status: 0
-exit status: 0
-exit status: 0
 cargo:warning=1 warning generated.
 exit status: 0
 exit status: 0

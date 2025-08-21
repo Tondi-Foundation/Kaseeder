@@ -1,4 +1,4 @@
-prefix=/home/arthur/AvatoLabs/dnsseeder/target/release/build/libz-sys-433665cdd0957d63/out
+prefix=/home/arthur/AvatoLabs/kaseeder/target/release/build/libz-sys-433665cdd0957d63/out
 exec_prefix=@exec_prefix@
 libdir=${prefix}/lib
 sharedlibdir=@sharedlibdir@

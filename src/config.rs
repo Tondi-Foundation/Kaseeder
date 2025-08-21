@@ -96,7 +96,7 @@ impl Config {
             net_suffix: 0,
             log_level: "info".to_string(),
             nologfiles: false,
-            error_log_file: Some("logs/dnsseeder_error.log".to_string()),
+            error_log_file: Some("logs/kaseeder_error.log".to_string()),
             profile: None,
         }
     }
@@ -180,10 +180,10 @@ impl Config {
     /// Try to load the configuration file from the default location
     pub fn try_load_default() -> Result<Self> {
         let default_paths = [
-            "./dnsseeder.conf",
-            "./config/dnsseeder.conf",
-            "~/.dnsseeder/dnsseeder.conf",
-            "/etc/dnsseeder/dnsseeder.conf",
+            "./kaseeder.conf",
+            "./config/kaseeder.conf",
+            "~/.kaseeder/kaseeder.conf",
+            "/etc/kaseeder/kaseeder.conf",
         ];
 
         for path in &default_paths {

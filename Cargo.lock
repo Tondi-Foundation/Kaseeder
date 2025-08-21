@@ -965,55 +965,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0688c2a7f92e427f44895cd63841bff7b29f8d7a1648b9e7e07a4a365b2e1257"
 
 [[package]]
-name = "dnsseeder"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum 0.6.20",
- "bincode",
- "chrono",
- "clap",
- "config",
- "dashmap",
- "dirs",
- "futures",
- "futures-util",
- "kaspa-addressmanager",
- "kaspa-consensus-core",
- "kaspa-core",
- "kaspa-p2p-lib",
- "kaspa-utils",
- "kaspa-utils-tower",
- "once_cell",
- "prost 0.11.9",
- "rand 0.8.5",
- "rand_core 0.6.4",
- "reqwest",
- "serde",
- "serde_json",
- "sled",
- "sysinfo 0.29.11",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-test",
- "tokio-tungstenite",
- "toml 0.8.23",
- "tonic 0.9.2",
- "tonic-build 0.10.2",
- "tower 0.4.13",
- "tower-http 0.4.4",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "trust-dns-proto",
- "trust-dns-resolver",
- "trust-dns-server",
- "uuid 1.18.0",
-]
-
-[[package]]
 name = "downcast"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1965,6 +1916,55 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
+]
+
+[[package]]
+name = "kaseeder"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.6.20",
+ "bincode",
+ "chrono",
+ "clap",
+ "config",
+ "dashmap",
+ "dirs",
+ "futures",
+ "futures-util",
+ "kaspa-addressmanager",
+ "kaspa-consensus-core",
+ "kaspa-core",
+ "kaspa-p2p-lib",
+ "kaspa-utils",
+ "kaspa-utils-tower",
+ "once_cell",
+ "prost 0.11.9",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sled",
+ "sysinfo 0.29.11",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "tokio-tungstenite",
+ "toml 0.8.23",
+ "tonic 0.9.2",
+ "tonic-build 0.10.2",
+ "tower 0.4.13",
+ "tower-http 0.4.4",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "trust-dns-proto",
+ "trust-dns-resolver",
+ "trust-dns-server",
+ "uuid 1.18.0",
 ]
 
 [[package]]

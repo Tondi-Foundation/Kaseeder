@@ -1,20 +1,20 @@
 use anyhow::Result;
 use clap::Parser;
-use dnsseeder::config::Config;
-use dnsseeder::crawler::Crawler;
-use dnsseeder::dns::DnsServer;
-use dnsseeder::grpc::GrpcServer;
-use dnsseeder::kaspa_protocol::create_consensus_config;
-use dnsseeder::logging::init_logging;
-use dnsseeder::manager::AddressManager;
-use dnsseeder::profiling::ProfilingServer;
+use kaseeder::config::Config;
+use kaseeder::crawler::Crawler;
+use kaseeder::dns::DnsServer;
+use kaseeder::grpc::GrpcServer;
+use kaseeder::kaspa_protocol::create_consensus_config;
+use kaseeder::logging::init_logging;
+use kaseeder::manager::AddressManager;
+use kaseeder::profiling::ProfilingServer;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::signal;
 use tracing::{error, info};
 
 #[derive(Parser)]
-#[command(name = "dnsseeder")]
+#[command(name = "kaseeder")]
 #[command(about = "Kaspa DNS Seeder")]
 #[command(version)]
 struct Cli {
@@ -227,7 +227,7 @@ async fn main() -> Result<()> {
         if config.nologfiles {
             None
         } else {
-            Some("dnsseeder.log")
+            Some("kaseeder.log")
         },
     )?;
 
