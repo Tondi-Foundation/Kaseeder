@@ -1,234 +1,257 @@
 # Kaseeder
 
-Kaseeder 是一个为 Kaspa 网络设计的 DNS 种子节点服务，用 Rust 编写。它提供高性能的节点发现和 DNS 解析服务。
+A high-performance DNS seeder for the Kaspa network, written in Rust. Kaseeder crawls the Kaspa P2P network to discover and maintain a list of active nodes, providing reliable DNS resolution for Kaspa clients.
 
-## 特性
+## 🚀 Features
 
-- 🚀 高性能 DNS 种子服务
-- 🔄 自动节点发现和爬取
-- 🌐 支持主网和测试网
-- 📊 内置性能监控和指标收集
-- 🔧 灵活的配置管理
-- 🐳 Docker 容器化支持
-- 📝 结构化日志记录
-- 🔒 安全的非特权端口配置
+- **High Performance**: Built with Rust and Tokio for maximum efficiency
+- **DNS Seeding**: Provides DNS resolution for Kaspa network nodes
+- **P2P Crawling**: Actively crawls the Kaspa network to discover peers
+- **gRPC API**: RESTful API for monitoring and management
+- **Configurable**: Flexible configuration with command-line overrides
+- **Production Ready**: Comprehensive error handling and logging
+- **Docker Support**: Containerized deployment with Docker and Docker Compose
 
-## 系统要求
+## 📋 System Requirements
 
-- Rust 1.75+ 
-- Linux/macOS/Windows
-- 网络访问权限
+- **Rust**: 1.75+ (latest stable recommended)
+- **OS**: Linux, macOS, Windows
+- **Memory**: 512MB RAM minimum, 1GB+ recommended
+- **Network**: Internet connection for P2P communication
+- **Ports**: 5354 (DNS), 3737 (gRPC), 8080 (Profiling)
 
-## 快速开始
+## 🛠️ Installation
 
-### 从源码构建
+### From Source
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-username/kaseeder.git
+   cd kaseeder
+   ```
+
+2. **Build the project**:
+   ```bash
+   # Debug build
+   cargo build
+   
+   # Release build (recommended for production)
+   cargo build --release
+   ```
+
+3. **Install system-wide** (optional):
+   ```bash
+   cargo install --path .
+   ```
+
+### Using Docker
 
 ```bash
-# 克隆仓库
-git clone https://github.com/your-org/kaseeder.git
-cd kaseeder
+# Pull the image
+docker pull kaseeder/kaseeder:latest
 
-# 构建项目
-cargo build --release
-
-# 运行（使用默认配置）
-./target/release/kaseeder
+# Or build locally
+docker build -t kaseeder .
 ```
 
-### 使用 Docker
+## 🚀 Quick Start
+
+### Basic Usage
+
+1. **Start with default configuration**:
+   ```bash
+   ./target/release/kaseeder
+   ```
+
+2. **Start with custom configuration**:
+   ```bash
+   ./target/release/kaseeder \
+     --host 0.0.0.0 \
+     --nameserver ns1.example.com \
+     --seeder seeder.example.com \
+     --grpc-listen 0.0.0.0:3737 \
+     --log-level info
+   ```
+
+3. **Start with configuration file**:
+   ```bash
+   ./target/release/kaseeder --config kaseeder.conf
+   ```
+
+### Docker Quick Start
 
 ```bash
-# 构建镜像
-docker build -t kaseeder .
-
-# 运行容器
+# Run with Docker
 docker run -d \
   --name kaseeder \
   -p 5354:5354 \
   -p 3737:3737 \
   -p 8080:8080 \
-  -v kaseeder_data:/app/data \
-  kaseeder
-```
+  kaseeder/kaseeder:latest
 
-### 使用 Docker Compose
-
-```bash
-# 启动主网服务
+# Run with Docker Compose
 docker-compose up -d
-
-# 启动测试网服务
-docker-compose --profile testnet up -d
 ```
 
-## 配置
+## ⚙️ Configuration
 
-### 配置文件
+### Configuration File
 
-创建 `kaseeder.conf` 文件：
+Create `kaseeder.conf` in your working directory:
 
 ```toml
-# DNS 服务器配置
-host = "seed.kaspa.org"
-nameserver = "ns1.kaspa.org"
+# Basic Configuration
 listen = "0.0.0.0:5354"
-
-# gRPC 服务器配置
 grpc_listen = "0.0.0.0:3737"
-
-# 应用配置
-app_dir = "./data"
-threads = 8
 log_level = "info"
+nologfiles = false
+error_log_file = "logs/error.log"
 
-# 网络配置
-testnet = false
-net_suffix = 0
+# Network Configuration
+network = "kaspa-mainnet"
+min_ua_ver = "1.0.0"
+seeder = "seeder.example.com"
+known_peers = ["peer1.example.com:16111", "peer2.example.com:16111"]
 
-# 种子节点配置
-seeder = "127.0.0.1:16111"
-known_peers = "192.168.1.100:16111,192.168.1.101:16111"
+# Performance Configuration
+profile = true
+max_addresses = 10000
+threads = 4
+
+# Application Configuration
+app_dir = "data"
 ```
 
-### 命令行参数
+### Command-Line Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--host` | DNS server host | `0.0.0.0` |
+| `--nameserver` | Nameserver domain | `ns1.example.com` |
+| `--seeder` | Seeder domain | `seeder.example.com` |
+| `--grpc-listen` | gRPC server address | `0.0.0.0:3737` |
+| `--log-level` | Logging level | `info` |
+| `--app-dir` | Application data directory | `data` |
+| `--config` | Configuration file path | `kaseeder.conf` |
+| `--help` | Show help message | - |
+
+### Environment Variables
 
 ```bash
-# 基本用法
-kaseeder --config kaseeder.conf
+# Set configuration via environment
+export KASEEDER_HOST=0.0.0.0
+export KASEEDER_GRPC_LISTEN=0.0.0.0:3737
+export KASEEDER_LOG_LEVEL=debug
+export KASEEDER_APP_DIR=/var/lib/kaseeder
 
-# 覆盖配置
-kaseeder --host seed.mykaspa.org --threads 16 --testnet
-
-# 查看帮助
-kaseeder --help
+# Run the application
+./target/release/kaseeder
 ```
 
-### 环境变量
+## 🐳 Docker Deployment
 
-```bash
-export RUST_LOG=kaseeder=info
-export KASEEDER_CONFIG=/path/to/config.toml
+### Dockerfile
+
+```dockerfile
+FROM rust:1.75-slim as builder
+WORKDIR /usr/src/app
+COPY . .
+RUN cargo build --release
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /usr/src/app/target/release/kaseeder /usr/local/bin/
+EXPOSE 5354 3737 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3737/health || exit 1
+CMD ["kaseeder"]
 ```
 
-## 部署
+### Docker Compose
 
-### 生产环境部署
+```yaml
+version: '3.8'
+services:
+  kaseeder:
+    build: .
+    container_name: kaseeder
+    ports:
+      - "5354:5354"   # DNS
+      - "3737:3737"   # gRPC
+      - "8080:8080"   # Profiling
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - KASEEDER_LOG_LEVEL=info
+      - KASEEDER_NETWORK=kaspa-mainnet
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3737/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
 
-1. **系统配置**
-   ```bash
-   # 创建系统用户
-   sudo useradd -r -s /bin/false kaseeder
-   
-   # 创建目录
-   sudo mkdir -p /opt/kaseeder/{bin,config,data,logs}
-   sudo chown -R kaseeder:kaseeder /opt/kaseeder
-   ```
+## 🚀 Production Deployment
 
-2. **服务文件**
-   ```ini
-   # /etc/systemd/system/kaseeder.service
-   [Unit]
-   Description=Kaseeder DNS Seeder
-   After=network.target
-   
-   [Service]
-   Type=simple
-   User=kaseeder
-   Group=kaseeder
-   WorkingDirectory=/opt/kaseeder
-   ExecStart=/opt/kaseeder/bin/kaseeder --config /opt/kaseeder/config/kaseeder.conf
-   Restart=always
-   RestartSec=10
-   
-   [Install]
-   WantedBy=multi-user.target
-   ```
+### Systemd Service
 
-3. **启动服务**
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable kaseeder
-   sudo systemctl start kaseeder
-   ```
+Create `/etc/systemd/system/kaseeder.service`:
 
-### 反向代理配置
+```ini
+[Unit]
+Description=Kaseeder DNS Seeder
+After=network.target
+Wants=network.target
 
-#### Nginx 配置
+[Service]
+Type=simple
+User=kaseeder
+Group=kaseeder
+WorkingDirectory=/opt/kaseeder
+ExecStart=/opt/kaseeder/kaseeder --config /opt/kaseeder/kaseeder.conf
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kaseeder
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/kaseeder/data /opt/kaseeder/logs
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Nginx Reverse Proxy
 
 ```nginx
-# DNS 服务
 server {
-    listen 53 udp;
-    server_name seed.kaspa.org;
-    
-    location / {
-        proxy_pass http://127.0.0.1:5354;
-        proxy_protocol off;
-    }
-}
+    listen 80;
+    server_name seeder.example.com;
 
-# gRPC 服务
-server {
-    listen 443 ssl http2;
-    server_name api.kaspa.org;
-    
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-    
     location / {
-        grpc_pass grpc://127.0.0.1:3737;
+        proxy_pass http://127.0.0.1:3737;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
-## 监控和日志
-
-### 日志配置
-
-```toml
-# 日志级别
-log_level = "info"
-
-# 日志文件
-nologfiles = false
-error_log_file = "logs/kaseeder_error.log"
-```
-
-### 性能监控
-
-启用性能分析服务器：
+### Firewall Configuration
 
 ```bash
-kaseeder --profile 8080
-```
-
-访问 `http://localhost:8080/metrics` 查看性能指标。
-
-### 健康检查
-
-```bash
-# HTTP 健康检查
-curl http://localhost:3737/health
-
-# gRPC 健康检查
-grpcurl -plaintext localhost:3737 grpc.health.v1.Health/Check
-```
-
-## 网络配置
-
-### 端口说明
-
-- **5354**: DNS 服务端口（非特权端口）
-- **3737**: gRPC/HTTP API 端口
-- **8080**: 性能监控端口（可选）
-
-### 防火墙配置
-
-```bash
-# UFW
-sudo ufw allow 5354/udp
-sudo ufw allow 3737/tcp
-sudo ufw allow 8080/tcp
+# UFW (Ubuntu/Debian)
+sudo ufw allow 5354/udp  # DNS
+sudo ufw allow 3737/tcp  # gRPC
+sudo ufw allow 8080/tcp  # Profiling
 
 # iptables
 sudo iptables -A INPUT -p udp --dport 5354 -j ACCEPT
@@ -236,113 +259,192 @@ sudo iptables -A INPUT -p tcp --dport 3737 -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
 ```
 
-## 故障排除
+## 📊 Monitoring & Health Checks
 
-### 常见问题
+### Health Check Endpoints
 
-1. **端口被占用**
+```bash
+# gRPC health check
+curl http://localhost:3737/health
+
+# Profiling endpoint
+curl http://localhost:8080/metrics
+
+# DNS query test
+dig @localhost -p 5354 seeder.example.com
+```
+
+### Log Monitoring
+
+```bash
+# Follow logs in real-time
+tail -f logs/kaseeder.log
+
+# Search for errors
+grep ERROR logs/kaseeder.log
+
+# Monitor specific log levels
+grep "DEBUG\|INFO\|WARN\|ERROR" logs/kaseeder.log
+```
+
+### Performance Metrics
+
+```bash
+# Check memory usage
+ps aux | grep kaseeder
+
+# Monitor network connections
+netstat -tulpn | grep kaseeder
+
+# Check disk usage
+du -sh data/
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+1. **Port Already in Use**:
    ```bash
-   # 检查端口使用情况
+   # Check what's using the port
    sudo netstat -tulpn | grep :5354
    
-   # 杀死占用进程
+   # Kill the process
    sudo kill -9 <PID>
    ```
 
-2. **权限问题**
+2. **Permission Denied**:
    ```bash
-   # 确保用户有权限访问数据目录
-   sudo chown -R kaseeder:kaseeder /opt/kaseeder/data
+   # Check file permissions
+   ls -la kaseeder.conf
+   
+   # Fix permissions
+   chmod 644 kaseeder.conf
    ```
 
-3. **网络连接问题**
+3. **Configuration Errors**:
    ```bash
-   # 测试网络连接
-   telnet 127.0.0.1 5354
-   curl http://127.0.0.1:3737/health
+   # Validate configuration
+   ./target/release/kaseeder --config kaseeder.conf --dry-run
+   
+   # Check configuration syntax
+   cat kaseeder.conf | grep -v "^#" | grep -v "^$"
    ```
 
-### 日志分析
+### Debug Mode
 
 ```bash
-# 查看实时日志
-tail -f logs/kaseeder.log
+# Enable debug logging
+./target/release/kaseeder --log-level debug
 
-# 搜索错误日志
-grep ERROR logs/kaseeder.log
+# Check detailed logs
+tail -f logs/kaseeder.log | grep DEBUG
 
-# 查看性能指标
-grep "performance" logs/kaseeder.log
+# Monitor network activity
+sudo tcpdump -i any port 5354 or port 3737
 ```
 
-## 开发
+### Performance Tuning
 
-### 构建开发环境
+```toml
+# kaseeder.conf
+[performance]
+threads = 8                    # Increase for high-traffic scenarios
+max_addresses = 50000         # Increase for larger networks
+connection_timeout = 10       # Network timeout in seconds
+retry_attempts = 5            # Connection retry attempts
+```
+
+## 🧪 Testing
+
+### Run Tests
 
 ```bash
-# 安装依赖
-cargo install cargo-watch
-
-# 开发模式运行
-cargo watch -x run
-
-# 运行测试
+# Run all tests
 cargo test
 
-# 代码格式化
+# Run specific test
+cargo test test_config_loading
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run tests in parallel
+cargo test -- --test-threads=4
+```
+
+### Integration Testing
+
+```bash
+# Test DNS resolution
+dig @localhost -p 5354 seeder.example.com
+
+# Test gRPC API
+curl -X GET http://localhost:3737/v1/status
+
+# Test health check
+curl -f http://localhost:3737/health
+```
+
+## 📚 API Reference
+
+### gRPC Endpoints
+
+- `GET /v1/status` - Get service status
+- `GET /v1/peers` - List discovered peers
+- `GET /v1/stats` - Get service statistics
+- `GET /health` - Health check endpoint
+
+### DNS Records
+
+- `A` records for IPv4 addresses
+- `AAAA` records for IPv6 addresses
+- `TXT` records for additional metadata
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Setup
+
+```bash
+# Install development dependencies
+cargo install cargo-watch
+cargo install cargo-audit
+
+# Run with hot reload
+cargo watch -x run
+
+# Check for security vulnerabilities
+cargo audit
+
+# Format code
 cargo fmt
 
-# 代码检查
+# Lint code
 cargo clippy
 ```
 
-### 项目结构
+## 📄 License
 
-```
-kaseeder/
-├── src/
-│   ├── main.rs          # 主程序入口
-│   ├── lib.rs           # 库模块导出
-│   ├── config.rs        # 配置管理
-│   ├── errors.rs        # 错误处理
-│   ├── constants.rs     # 常量定义
-│   ├── manager.rs       # 地址管理
-│   ├── crawler.rs       # 节点爬取
-│   ├── dns.rs          # DNS 服务
-│   ├── grpc.rs         # gRPC 服务
-│   └── ...
-├── proto/               # Protocol Buffers 定义
-├── docker-compose.yml   # Docker 编排
-├── Dockerfile          # Docker 镜像
-└── README.md           # 项目文档
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 贡献
+## 🙏 Acknowledgments
 
-欢迎贡献代码！请遵循以下步骤：
+- Kaspa Network team for the protocol specification
+- Rust community for the excellent ecosystem
+- Contributors and maintainers
 
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开 Pull Request
+## 📞 Support
 
-## 许可证
+- **Issues**: [GitHub Issues](https://github.com/your-username/kaseeder/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-username/kaseeder/discussions)
+- **Documentation**: [Wiki](https://github.com/your-username/kaseeder/wiki)
 
-本项目采用 ISC 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+---
 
-## 支持
-
-- 📧 邮箱: support@kaseeder.org
-- 💬 讨论: [GitHub Discussions](https://github.com/your-org/kaseeder/discussions)
-- 🐛 问题报告: [GitHub Issues](https://github.com/your-org/kaseeder/issues)
-
-## 更新日志
-
-### v0.1.0
-- 初始版本发布
-- 基本的 DNS 种子服务
-- 节点发现和爬取功能
-- Docker 支持
-- 配置管理改进
-- 错误处理优化
+**Made with ❤️ by the Kaseeder Team**
