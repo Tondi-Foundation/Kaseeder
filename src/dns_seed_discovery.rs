@@ -3,11 +3,11 @@ use anyhow::Result;
 use std::net::ToSocketAddrs;
 use tracing::warn;
 
-/// DNS种子发现器
+/// DNS seed discoverer
 pub struct DnsSeedDiscovery;
 
 impl DnsSeedDiscovery {
-    /// 从网络参数获取DNS种子服务器列表
+    /// Get DNS seed server list from network parameters
     pub fn get_dns_seeders_from_network_params(
         params: &crate::config::NetworkParams,
     ) -> Vec<String> {
@@ -35,21 +35,21 @@ impl DnsSeedDiscovery {
         }
     }
 
-    /// 查询DNS种子服务器
+    /// Query DNS seed server
     pub async fn query_seed_server(
         seed_server: &str,
         default_port: u16,
     ) -> Result<Vec<NetAddress>> {
-        // 直接查询DNS种子服务器
+        // Query DNS seed server directly
         Self::query_seed_server_direct(seed_server, default_port).await
     }
 
-    /// 直接查询DNS种子服务器
+    /// Query DNS seed server directly
     async fn query_seed_server_direct(
         seed_server: &str,
         default_port: u16,
     ) -> Result<Vec<NetAddress>> {
-        // 使用 to_socket_addrs() 方法查询DNS，与rusty-kaspa完全一致
+        // Use to_socket_addrs() method to query DNS, exactly consistent with rusty-kaspa
         let addrs = match (seed_server, default_port).to_socket_addrs() {
             Ok(addrs) => addrs,
             Err(e) => {
@@ -90,16 +90,17 @@ mod tests {
         };
         let testnet_servers =
             DnsSeedDiscovery::get_dns_seeders_from_network_params(&testnet_params);
+        println!("Testnet servers: {:?}", testnet_servers);
         assert!(!testnet_servers.is_empty());
-        assert!(testnet_servers.contains(&"seeder1-testnet.kaspad.net".to_string()));
+        assert!(testnet_servers.contains(&"seed1-10-testnet.kaspad.net".to_string()));
     }
 
     #[tokio::test]
     async fn test_query_seed_server() {
-        // 注意：这个测试需要网络连接
+        // Note: This test requires network connection
         let result =
             DnsSeedDiscovery::query_seed_server("seeder1.kaspad.net", 16111).await;
-        // 即使失败也不应该panic
+        // Should not panic even if it fails
         assert!(result.is_ok());
     }
 }

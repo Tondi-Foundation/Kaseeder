@@ -8,14 +8,14 @@ use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 
-/// 性能分析服务器
+/// Performance profiling server
 pub struct ProfilingServer {
     port: u16,
     stats: Arc<Mutex<ProfilingStats>>,
     is_running: Arc<Mutex<bool>>,
 }
 
-/// 性能统计信息
+/// Performance statistics
 #[derive(Debug, Default)]
 pub struct ProfilingStats {
     pub start_time: Option<Instant>,
@@ -28,7 +28,7 @@ pub struct ProfilingStats {
 }
 
 impl ProfilingServer {
-    /// 创建新的性能分析服务器
+    /// Create a new performance profiling server
     pub fn new(port: u16) -> Self {
         Self {
             port,
@@ -37,7 +37,7 @@ impl ProfilingServer {
         }
     }
 
-    /// 启动性能分析服务器
+    /// Start the performance profiling server
     pub async fn start(&self) -> Result<()> {
         let mut is_running = self.is_running.lock().await;
         if *is_running {
@@ -52,7 +52,7 @@ impl ProfilingServer {
         let stats = self.stats.clone();
         let is_running = self.is_running.clone();
 
-        // 启动性能分析服务器
+        // Start the performance profiling server
         tokio::spawn(async move {
             if let Err(e) = Self::run_server(port, stats, is_running).await {
                 error!("Profiling server error: {}", e);
@@ -63,7 +63,7 @@ impl ProfilingServer {
         Ok(())
     }
 
-    /// 运行性能分析服务器
+    /// Run the performance profiling server
     async fn run_server(
         port: u16,
         stats: Arc<Mutex<ProfilingStats>>,
@@ -74,20 +74,20 @@ impl ProfilingServer {
 
         info!("Profiling server listening on {}", addr);
 
-        // 初始化统计信息
+        // Initialize statistics
         {
             let mut stats_guard = stats.lock().await;
             stats_guard.start_time = Some(Instant::now());
         }
 
-        // 启动统计信息更新任务
+        // Start statistics update task
         let stats_clone = stats.clone();
         tokio::spawn(async move {
             Self::update_stats_periodically(stats_clone).await;
         });
 
         loop {
-            // 检查是否应该停止
+            // Check if should stop
             {
                 let running = is_running.lock().await;
                 if !*running {
@@ -112,7 +112,7 @@ impl ProfilingServer {
                     }
                 }
                 _ = tokio::time::sleep(Duration::from_millis(100)) => {
-                    // 定期检查停止信号
+                    // Periodically check stop signal
                 }
             }
         }
@@ -121,32 +121,32 @@ impl ProfilingServer {
         Ok(())
     }
 
-    /// 处理连接
+    /// Handle connection
     async fn handle_connection(
         mut socket: tokio::net::TcpStream,
         addr: SocketAddr,
         stats: Arc<Mutex<ProfilingStats>>,
     ) -> Result<()> {
-        // 更新活跃连接数
+        // Update active connection count
         {
             let mut stats_guard = stats.lock().await;
             stats_guard.active_connections += 1;
             stats_guard.request_count += 1;
         }
 
-        // 简单的HTTP响应
+        // Simple HTTP response
         let response = Self::generate_profiling_response(&stats).await;
 
         if let Err(e) = tokio::io::AsyncWriteExt::write_all(&mut socket, response.as_bytes()).await
         {
             error!("Failed to write response to {}: {}", addr, e);
 
-            // 更新错误计数
+            // Update error count
             let mut stats_guard = stats.lock().await;
             stats_guard.error_count += 1;
         }
 
-        // 更新活跃连接数
+        // Update active connection count
         {
             let mut stats_guard = stats.lock().await;
             stats_guard.active_connections = stats_guard.active_connections.saturating_sub(1);
@@ -155,7 +155,7 @@ impl ProfilingServer {
         Ok(())
     }
 
-    /// 生成性能分析响应
+    /// Generate performance profiling response
     async fn generate_profiling_response(stats: &Arc<Mutex<ProfilingStats>>) -> String {
         let stats_guard = stats.lock().await;
 
@@ -244,7 +244,7 @@ impl ProfilingServer {
         )
     }
 
-    /// 定期更新统计信息
+    /// Periodically update statistics
     async fn update_stats_periodically(stats: Arc<Mutex<ProfilingStats>>) {
         let mut interval = tokio::time::interval(Duration::from_secs(5));
 
@@ -253,11 +253,11 @@ impl ProfilingServer {
 
             let mut stats_guard = stats.lock().await;
 
-            // 更新内存使用情况
+            // Update memory usage
             let mut system = System::new_all();
             stats_guard.memory_usage_bytes = system.used_memory();
 
-            // 更新CPU使用情况
+            // Update CPU usage
             system.refresh_cpu();
             let cpu_usage: f64 =
                 system.cpus().iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() as f64;
@@ -265,18 +265,18 @@ impl ProfilingServer {
         }
     }
 
-    /// 添加自定义指标
+    /// Add custom metric
     pub async fn add_custom_metric(&self, name: String, value: f64) {
         let mut stats = self.stats.lock().await;
         stats.custom_metrics.insert(name, value);
     }
 
-    /// 获取统计信息
+    /// Get statistics
     pub async fn get_stats(&self) -> ProfilingStats {
         self.stats.lock().await.clone()
     }
 
-    /// 停止性能分析服务器
+    /// Stop the performance profiling server
     pub async fn stop(&self) -> Result<()> {
         let mut is_running = self.is_running.lock().await;
         *is_running = false;
@@ -296,7 +296,7 @@ impl Clone for ProfilingServer {
 }
 
 impl ProfilingStats {
-    /// 克隆统计信息
+    /// Clone statistics
     pub fn clone(&self) -> Self {
         Self {
             start_time: self.start_time,

@@ -28,7 +28,7 @@ The DNS seeder consists of several key components:
 
 ### Prerequisites
 
-- Rust 1.70+ (2021 edition)
+- Rust 1.89+ (2024 edition)
 - Access to Kaspa network nodes
 - Network connectivity for peer discovery
 

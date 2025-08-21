@@ -1,11 +1,11 @@
 use anyhow::Result;
 use tracing::warn;
 
-/// 版本检查器
+/// Version checker
 pub struct VersionChecker;
 
 impl VersionChecker {
-    /// 检查用户代理版本是否满足最低要求
+    /// Check if user agent version meets minimum requirements
     pub fn check_version(min_version: &str, peer_version: &str) -> Result<()> {
         if min_version.is_empty() || peer_version.is_empty() {
             return Ok(());
@@ -24,12 +24,12 @@ impl VersionChecker {
             }
             Err(e) => {
                 warn!("Version comparison failed: {}. Accepting peer version.", e);
-                Ok(()) // 如果版本比较失败，接受该版本
+                Ok(()) // If version comparison fails, accept the version
             }
         }
     }
 
-    /// 比较语义版本
+    /// Compare semantic versions
     fn compare_semantic_versions(version1: &str, version2: &str) -> Result<std::cmp::Ordering> {
         let v1_parts: Vec<u32> = version1
             .split('.')
@@ -45,7 +45,7 @@ impl VersionChecker {
             return Err(anyhow::anyhow!("Invalid version format"));
         }
 
-        // 比较版本号
+        // Compare version numbers
         let max_len = std::cmp::max(v1_parts.len(), v2_parts.len());
 
         for i in 0..max_len {
@@ -58,14 +58,14 @@ impl VersionChecker {
             }
         }
 
-        // 所有部分都相等
+        // All parts are equal
         Ok(std::cmp::Ordering::Equal)
     }
 
-    /// 检查协议版本是否满足最低要求
+    /// Check if protocol version meets minimum requirements
     pub fn check_protocol_version(peer_version: u32, min_version: u16) -> Result<()> {
         if min_version == 0 {
-            // 不设置最小版本要求
+            // No minimum version requirement set
             return Ok(());
         }
 
@@ -77,7 +77,7 @@ impl VersionChecker {
             ));
         }
 
-        // 检查版本是否在合理范围内
+        // Check if version is within reasonable range
         if peer_version > 100 {
             return Err(anyhow::anyhow!(
                 "Protocol version {} seems unreasonably high",
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_version_comparison() {
-        // 测试基本版本比较
+        // Test basic version comparison
         assert!(VersionChecker::check_version("1.0.0", "1.0.1").is_ok());
         assert!(VersionChecker::check_version("1.0.1", "1.0.0").is_err());
         assert!(VersionChecker::check_version("1.0.0", "1.0.0").is_ok());
@@ -105,7 +105,7 @@ mod tests {
     fn test_protocol_version_check() {
         assert!(VersionChecker::check_protocol_version(5, 4).is_ok());
         assert!(VersionChecker::check_protocol_version(3, 4).is_err());
-        assert!(VersionChecker::check_protocol_version(5, 0).is_ok()); // 无最小版本要求
+        assert!(VersionChecker::check_protocol_version(5, 0).is_ok()); // No minimum version requirement
     }
 
     #[test]

@@ -356,7 +356,7 @@ impl Default for Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+
     use tempfile::tempdir;
 
     #[test]

@@ -279,22 +279,21 @@ impl DnsSeederServiceTrait for DnsSeederServiceImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::NetAddress;
-    use std::net::IpAddr;
 
-    #[test]
-    fn test_grpc_server_creation() {
+
+    #[tokio::test]
+    async fn test_grpc_server_creation() {
         let address_manager = Arc::new(AddressManager::new("./test_data").unwrap());
-        let server = GrpcServer::new(address_manager);
+        let _server = GrpcServer::new(address_manager);
         assert!(true); // 验证创建成功
     }
 
-    #[test]
-    fn test_get_addresses() {
+    #[tokio::test]
+    async fn test_get_addresses() {
         let address_manager = Arc::new(AddressManager::new("./test_data").unwrap());
-        let server = GrpcServer::new(address_manager);
+        let _server = GrpcServer::new(address_manager);
 
-        let addresses = server.get_addresses(10);
+        let addresses = _server.get_addresses(10);
         assert_eq!(addresses.len(), 0); // 新创建的地址管理器应该是空的
     }
 }

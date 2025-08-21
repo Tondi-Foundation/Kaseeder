@@ -6,7 +6,7 @@ use std::time::{Duration, SystemTime};
 use tokio::sync::Mutex;
 use tracing::{error, info};
 
-/// 系统监控器
+/// System monitor
 pub struct SystemMonitor {
     start_time: SystemTime,
     health_status: Arc<Mutex<HealthStatus>>,
@@ -14,7 +14,7 @@ pub struct SystemMonitor {
     performance_metrics: Arc<Mutex<PerformanceMetrics>>,
 }
 
-/// 性能指标
+/// Performance metrics
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct PerformanceMetrics {
     pub cpu_usage: f64,
@@ -27,7 +27,7 @@ pub struct PerformanceMetrics {
     pub last_updated: Option<SystemTime>,
 }
 
-/// 系统状态报告
+/// System status report
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SystemStatusReport {
     pub uptime_seconds: u64,
@@ -38,7 +38,7 @@ pub struct SystemStatusReport {
 }
 
 impl SystemMonitor {
-    /// 创建新的系统监控器
+    /// Create a new system monitor
     pub fn new() -> Self {
         Self {
             start_time: SystemTime::now(),
@@ -48,14 +48,14 @@ impl SystemMonitor {
         }
     }
 
-    /// 启动监控
+    /// Start monitoring
     pub async fn start_monitoring(&self) -> Result<()> {
         info!("Starting system monitoring");
 
         let health_status = self.health_status.clone();
         let performance_metrics = self.performance_metrics.clone();
 
-        // 启动定期健康检查
+        // Start periodic health checks
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(30));
             loop {
@@ -70,7 +70,7 @@ impl SystemMonitor {
             }
         });
 
-        // 启动性能指标收集
+        // Start performance metrics collection
         let performance_metrics = self.performance_metrics.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(10));
@@ -87,7 +87,7 @@ impl SystemMonitor {
         Ok(())
     }
 
-    /// 执行健康检查
+    /// Perform health check
     async fn perform_health_check(
         health_status: Arc<Mutex<HealthStatus>>,
         performance_metrics: Arc<Mutex<PerformanceMetrics>>,
@@ -95,23 +95,23 @@ impl SystemMonitor {
         let mut health = health_status.lock().await;
         let metrics = performance_metrics.lock().await;
 
-        // 清除旧的问题
+        // Clear old issues
         health.clear_issues();
 
-        // 检查CPU使用率
+        // Check CPU usage
         if metrics.cpu_usage > 90.0 {
             health.add_error("High CPU usage detected".to_string());
         } else if metrics.cpu_usage > 70.0 {
             health.add_warning("Elevated CPU usage detected".to_string());
         }
 
-        // 检查内存使用
+        // Check memory usage
         if metrics.memory_usage > 1024 * 1024 * 1024 {
             // 1GB
             health.add_warning("High memory usage detected".to_string());
         }
 
-        // 检查响应时间
+        // Check response time
         if metrics.avg_response_time_ms > 5000.0 {
             health.add_error("High response time detected".to_string());
         } else if metrics.avg_response_time_ms > 2000.0 {
@@ -128,13 +128,13 @@ impl SystemMonitor {
         Ok(())
     }
 
-    /// 收集性能指标
+    /// Collect performance metrics
     async fn collect_performance_metrics(
         performance_metrics: Arc<Mutex<PerformanceMetrics>>,
     ) -> Result<()> {
         let mut metrics = performance_metrics.lock().await;
 
-        // 简化的性能指标收集（实际应该使用系统API）
+        // Simplified performance metrics collection (should use system API in practice)
         metrics.cpu_usage = Self::get_cpu_usage().await?;
         metrics.memory_usage = Self::get_memory_usage().await?;
         metrics.network_connections = Self::get_network_connections().await?;
@@ -143,29 +143,29 @@ impl SystemMonitor {
         Ok(())
     }
 
-    /// 获取CPU使用率
+    /// Get CPU usage
     async fn get_cpu_usage() -> Result<f64> {
-        // 简化实现，实际应该读取/proc/stat或使用系统API
-        Ok(rand::random::<f64>() * 50.0) // 模拟0-50%的CPU使用率
+        // Simplified implementation, should read /proc/stat or use system API in practice
+        Ok(rand::random::<f64>() * 50.0) // Simulate 0-50% CPU usage
     }
 
-    /// 获取内存使用量
+    /// Get memory usage
     async fn get_memory_usage() -> Result<u64> {
-        // 简化实现，实际应该读取/proc/meminfo或使用系统API
-        Ok(1024 * 1024 * 512) // 模拟512MB内存使用
+        // Simplified implementation, should read /proc/meminfo or use system API in practice
+        Ok(1024 * 1024 * 512) // Simulate 512MB memory usage
     }
 
-    /// 获取网络连接数
+    /// Get network connection count
     async fn get_network_connections() -> Result<u32> {
-        // 简化实现，实际应该读取/proc/net/tcp或使用系统API
+        // Simplified implementation, should read /proc/net/tcp or use system API in practice
         Ok(rand::random::<u32>() % 100)
     }
 
-    /// 更新DNS查询统计
+    /// Update DNS query statistics
     pub async fn record_dns_query(&self, response_time: Duration) {
         let mut metrics = self.performance_metrics.lock().await;
 
-        // 简化的移动平均计算
+        // Simplified moving average calculation
         let response_time_ms = response_time.as_millis() as f64;
         if metrics.avg_response_time_ms == 0.0 {
             metrics.avg_response_time_ms = response_time_ms;

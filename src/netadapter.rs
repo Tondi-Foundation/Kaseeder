@@ -17,7 +17,7 @@ use tonic::async_trait;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
-/// DNS种子连接初始化器，专门用于地址收集
+/// DNS seeder connection initializer, specifically for address collection
 pub struct DnsSeederConnectionInitializer {
     version_message: VersionMessage,
     addresses_tx: mpsc::Sender<Vec<NetAddress>>,
@@ -29,7 +29,7 @@ impl DnsSeederConnectionInitializer {
         addresses_tx: mpsc::Sender<Vec<NetAddress>>,
     ) -> Self {
         let version_message = VersionMessage {
-            protocol_version: 5, // Kaspa 协议版本
+            protocol_version: 5, // Kaspa protocol version
             services: 0,
             timestamp: unix_now() as i64,
             address: None,
@@ -50,11 +50,11 @@ impl DnsSeederConnectionInitializer {
 #[async_trait]
 impl ConnectionInitializer for DnsSeederConnectionInitializer {
     async fn initialize_connection(&self, router: Arc<Router>) -> Result<(), ProtocolError> {
-        // 1. 订阅握手消息并启动路由器
+        // 1. Subscribe to handshake messages and start the router
         let mut handshake = KaspadHandshake::new(&router);
         router.start();
 
-        // 2. 执行握手
+        // 2. Perform handshake
         debug!("Starting handshake with peer");
         let peer_version = handshake.handshake(self.version_message.clone()).await?;
         info!(
@@ -62,13 +62,13 @@ impl ConnectionInitializer for DnsSeederConnectionInitializer {
             peer_version.user_agent
         );
 
-        // 3. 订阅地址相关消息
+        // 3. Subscribe to address-related messages
         let addresses_receiver = router.subscribe(vec![KaspadMessagePayloadType::Addresses]);
 
-        // 4. 发送 Ready 消息完成握手
+        // 4. Send Ready message to complete handshake
         handshake.exchange_ready_messages().await?;
 
-        // 5. 请求地址
+        // 5. Request addresses
         debug!("Requesting addresses from peer");
         let request_addresses = make_message!(
             Payload::RequestAddresses,
@@ -79,7 +79,7 @@ impl ConnectionInitializer for DnsSeederConnectionInitializer {
         );
         router.enqueue(request_addresses).await?;
 
-        // 6. 启动ping-pong处理协程（保持连接活跃）
+        // 6. Start ping-pong handler coroutine (keep connection alive)
         let router_clone = router.clone();
         tokio::spawn(async move {
             if let Err(e) = DnsseedNetAdapter::handle_ping_pong(router_clone).await {
@@ -87,8 +87,8 @@ impl ConnectionInitializer for DnsSeederConnectionInitializer {
             }
         });
 
-        // 7. 等待地址响应
-        // 启动地址响应处理协程
+        // 7. Wait for address response
+        // Start address response handler coroutine
         let addresses_tx = self.addresses_tx.clone();
 
         tokio::spawn(async move {
@@ -107,18 +107,18 @@ impl DnsSeederConnectionInitializer {
         mut addresses_receiver: IncomingRoute,
         addresses_tx: mpsc::Sender<Vec<NetAddress>>,
     ) -> Result<(), ProtocolError> {
-        // 等待地址消息，带超时
+        // Wait for address message with timeout
         tokio::select! {
             msg_opt = addresses_receiver.recv() => {
                 if let Some(msg) = msg_opt {
                     if let Some(Payload::Addresses(addresses_msg)) = msg.payload {
                         debug!("Received {} addresses from peer", addresses_msg.address_list.len());
 
-                        // 转换地址格式
+                        // Convert address format
                         let addresses: Vec<NetAddress> = addresses_msg.address_list
                             .into_iter()
                             .filter_map(|addr| {
-                                // 解析 IP 地址字节
+                                // Parse IP address bytes
                                 if addr.ip.len() == 4 {
                                     // IPv4
                                     let ip_bytes: [u8; 4] = [addr.ip[0], addr.ip[1], addr.ip[2], addr.ip[3]];
@@ -137,7 +137,7 @@ impl DnsSeederConnectionInitializer {
                             })
                             .collect();
 
-                        // 发送地址到主线程
+                        // Send addresses to main thread
                         if let Err(e) = addresses_tx.send(addresses).await {
                             warn!("Failed to send addresses to main thread: {}", e);
                         }
@@ -153,14 +153,14 @@ impl DnsSeederConnectionInitializer {
     }
 }
 
-/// DNS种子网络适配器，使用真正的kaspa-p2p-lib
+/// DNS seeder network adapter, using the real kaspa-p2p-lib
 pub struct DnsseedNetAdapter {
     adaptor: Arc<Adaptor>,
     addresses_rx: Arc<Mutex<mpsc::Receiver<Vec<NetAddress>>>>,
 }
 
 impl DnsseedNetAdapter {
-    /// 创建新的网络适配器实例
+    /// Create a new network adapter instance
     pub fn new(consensus_config: Arc<ConsensusConfig>) -> Result<Self> {
         let (addresses_tx, addresses_rx) = mpsc::channel(100);
 
@@ -180,14 +180,14 @@ impl DnsseedNetAdapter {
         })
     }
 
-    /// 连接到指定地址并获取地址列表
+    /// Connect to the specified address and get the address list
     pub async fn connect_and_get_addresses(
         &self,
         address: &str,
     ) -> Result<(VersionMessage, Vec<NetAddress>)> {
         info!("Connecting to peer: {}", address);
 
-        // 实现指数退避重连策略
+        // Implement exponential backoff reconnection strategy
         let mut retry_count = 0;
         let max_retries = 3;
         let base_delay = Duration::from_secs(1);
@@ -223,22 +223,22 @@ impl DnsseedNetAdapter {
         }
     }
 
-    /// 尝试连接单个节点
+    /// Try to connect to a single node
     async fn try_connect_peer(
         &self,
         address: &str,
     ) -> Result<(PeerKey, VersionMessage, Vec<NetAddress>)> {
-        // 连接到对等节点
+        // Connect to peer node
         let peer_key = self
             .adaptor
             .connect_peer_with_retries(
                 address.to_string(),
-                1,                      // 单次连接尝试
-                Duration::from_secs(5), // 连接超时5秒
+                1,                      // Single connection attempt
+                Duration::from_secs(5), // Connection timeout 5 seconds
             )
             .await
             .map_err(|e| {
-                // 分类错误类型
+                // Classify error types
                 match e {
                     kaspa_p2p_lib::ConnectionError::ProtocolError(_) => {
                         anyhow::anyhow!("Protocol error connecting to {}: {}", address, e)
@@ -255,19 +255,19 @@ impl DnsseedNetAdapter {
                 }
             })?;
 
-        // 等待地址响应，带超时
+        // Wait for address response with timeout
         let addresses = self.wait_for_addresses_with_timeout(peer_key).await?;
 
-        // 获取对等节点信息（包括版本信息）
+        // Get peer node information (including version information)
         let version_message = self.get_peer_version_info(peer_key).await?;
 
-        // 断开连接
+        // Disconnect
         self.adaptor.terminate(peer_key).await;
 
         Ok((peer_key, version_message, addresses))
     }
 
-    /// 等待地址响应，带超时
+    /// Wait for address response with timeout
     async fn wait_for_addresses_with_timeout(&self, peer_key: PeerKey) -> Result<Vec<NetAddress>> {
         let mut addresses_rx = self.addresses_rx.lock().await;
 
@@ -291,7 +291,7 @@ impl DnsseedNetAdapter {
         }
     }
 
-    /// 获取对等节点版本信息
+    /// Get peer node version information
     async fn get_peer_version_info(&self, peer_key: PeerKey) -> Result<VersionMessage> {
         let peers = self.adaptor.active_peers();
         let version_message = peers
@@ -312,7 +312,7 @@ impl DnsseedNetAdapter {
                             bytes: <[u8]>::to_vec(id.as_ref()),
                         }
                     }),
-                    network: "".to_string(), // 网络名称不在 properties 中
+                    network: "".to_string(), // Network name not in properties
                 }
             })
             .unwrap_or_else(|| {
@@ -333,14 +333,14 @@ impl DnsseedNetAdapter {
         Ok(version_message)
     }
 
-    /// 关闭适配器
+    /// Close the adapter
     pub async fn close(&self) {
         self.adaptor.close().await;
     }
 
-    /// 处理ping-pong消息，保持连接活跃
+    /// Handle ping-pong messages to keep connection alive
     async fn handle_ping_pong(router: Arc<Router>) -> Result<(), ProtocolError> {
-        // 订阅ping消息
+        // Subscribe to ping messages
         let mut ping_receiver = router.subscribe(vec![KaspadMessagePayloadType::Ping]);
 
         loop {
@@ -350,7 +350,7 @@ impl DnsseedNetAdapter {
                         if let Some(Payload::Ping(ping_msg)) = msg.payload {
                             debug!("Received ping message with nonce: {}", ping_msg.nonce);
 
-                            // 发送pong响应
+                            // Send pong response
                             let pong_message = make_message!(
                                 Payload::Pong,
                                 kaspa_p2p_lib::pb::PongMessage { nonce: ping_msg.nonce }
@@ -364,13 +364,13 @@ impl DnsseedNetAdapter {
                             debug!("Sent pong response with nonce: {}", ping_msg.nonce);
                         }
                     } else {
-                        // 连接已关闭
+                        // Connection closed
                         debug!("Ping receiver closed, stopping ping-pong handler");
                         break;
                     }
                 }
                 _ = tokio::time::sleep(Duration::from_secs(60)) => {
-                    // 定期发送ping消息保持连接活跃
+                    // Periodically send ping messages to keep connection alive
                     let ping_message = make_message!(
                         Payload::Ping,
                         kaspa_p2p_lib::pb::PingMessage { nonce: rand::random::<u64>() }

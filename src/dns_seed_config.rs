@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
 
-/// DNS种子服务器配置
+/// DNS seed server configuration
 #[derive(Debug, Clone)]
 pub struct DnsSeedConfig {
-    /// 主网DNS种子服务器
+    /// Mainnet DNS seed servers
     pub mainnet_servers: Vec<String>,
-    /// 测试网DNS种子服务器
+    /// Testnet DNS seed servers
     pub testnet_servers: HashMap<u16, Vec<String>>,
 }
 
 impl DnsSeedConfig {
-    /// 获取默认配置
+    /// Get default configuration
     pub fn default() -> Self {
         Self {
                     mainnet_servers: vec![
@@ -38,24 +38,24 @@ impl DnsSeedConfig {
         }
     }
 
-    /// 获取主网DNS种子服务器
+    /// Get mainnet DNS seed servers
     pub fn get_mainnet_servers(&self) -> &[String] {
         &self.mainnet_servers
     }
 
-    /// 获取测试网DNS种子服务器
+    /// Get testnet DNS seed servers
     pub fn get_testnet_servers(&self, suffix: u16) -> Option<&[String]> {
         self.testnet_servers.get(&suffix).map(|v| &**v)
     }
 
-    /// 添加主网DNS种子服务器
+    /// Add mainnet DNS seed server
     pub fn add_mainnet_server(&mut self, server: String) {
         if !self.mainnet_servers.contains(&server) {
             self.mainnet_servers.push(server);
         }
     }
 
-    /// 添加测试网DNS种子服务器
+    /// Add testnet DNS seed server
     pub fn add_testnet_server(&mut self, suffix: u16, server: String) {
         let servers = self.testnet_servers.entry(suffix).or_insert_with(Vec::new);
         if !servers.contains(&server) {
@@ -63,12 +63,12 @@ impl DnsSeedConfig {
         }
     }
 
-    /// 移除主网DNS种子服务器
+    /// Remove mainnet DNS seed server
     pub fn remove_mainnet_server(&mut self, server: &str) {
         self.mainnet_servers.retain(|s| s != server);
     }
 
-    /// 移除测试网DNS种子服务器
+    /// Remove testnet DNS seed server
     pub fn remove_testnet_server(&mut self, suffix: u16, server: &str) {
         if let Some(servers) = self.testnet_servers.get_mut(&suffix) {
             servers.retain(|s| s != server);
@@ -76,7 +76,7 @@ impl DnsSeedConfig {
     }
 }
 
-// 全局DNS种子配置实例
+// Global DNS seed configuration instance
 pub static DNS_SEED_CONFIG: Lazy<DnsSeedConfig> = Lazy::new(DnsSeedConfig::default);
 
 #[cfg(test)]
@@ -87,11 +87,11 @@ mod tests {
     fn test_dns_seed_config() {
         let config = DnsSeedConfig::default();
         
-        // 测试主网服务器
+        // Test mainnet servers
         assert!(!config.get_mainnet_servers().is_empty());
         assert!(config.get_mainnet_servers().contains(&"seeder1.kaspad.net".to_string()));
         
-        // 测试测试网服务器
+        // Test testnet servers
         let testnet_10 = config.get_testnet_servers(10);
         assert!(testnet_10.is_some());
         assert!(!testnet_10.unwrap().is_empty());
@@ -106,12 +106,12 @@ mod tests {
         let mut config = DnsSeedConfig::default();
         let original_count = config.get_mainnet_servers().len();
         
-        // 添加服务器
+        // Add server
         config.add_mainnet_server("test.example.com".to_string());
         assert_eq!(config.get_mainnet_servers().len(), original_count + 1);
         assert!(config.get_mainnet_servers().contains(&"test.example.com".to_string()));
         
-        // 移除服务器
+        // Remove server
         config.remove_mainnet_server("test.example.com");
         assert_eq!(config.get_mainnet_servers().len(), original_count);
         assert!(!config.get_mainnet_servers().contains(&"test.example.com".to_string()));
