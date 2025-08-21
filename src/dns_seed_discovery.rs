@@ -13,8 +13,6 @@ impl DnsSeedDiscovery {
     ) -> Vec<String> {
         match params {
             crate::config::NetworkParams::Mainnet { .. } => vec![
-                "mainnet-dnsseed-1.kaspanet.org".to_string(),
-                "mainnet-dnsseed-2.kaspanet.org".to_string(),
                 "seeder1.kaspad.net".to_string(),
                 "seeder2.kaspad.net".to_string(),
                 "seeder3.kaspad.net".to_string(),
@@ -83,7 +81,7 @@ mod tests {
         let mainnet_servers =
             DnsSeedDiscovery::get_dns_seeders_from_network_params(&mainnet_params);
         assert!(!mainnet_servers.is_empty());
-        assert!(mainnet_servers.contains(&"mainnet-dnsseed-1.kaspanet.org".to_string()));
+        assert!(mainnet_servers.contains(&"seeder1.kaspad.net".to_string()));
         assert!(mainnet_servers.contains(&"seeder1.kaspad.net".to_string()));
 
         let testnet_params = NetworkParams::Testnet {
@@ -100,7 +98,7 @@ mod tests {
     async fn test_query_seed_server() {
         // 注意：这个测试需要网络连接
         let result =
-            DnsSeedDiscovery::query_seed_server("mainnet-dnsseed-1.kaspanet.org", 16111).await;
+            DnsSeedDiscovery::query_seed_server("seeder1.kaspad.net", 16111).await;
         // 即使失败也不应该panic
         assert!(result.is_ok());
     }

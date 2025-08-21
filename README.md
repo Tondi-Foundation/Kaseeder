@@ -1,210 +1,225 @@
-# Kaseeder
+# Kaspa DNS Seeder
 
-这是一个用Rust语言实现的DNS种子节点服务，用于Kaspa网络。该项目提供了高性能的DNS种子节点发现功能。
+A high-performance, production-ready DNS seeder for the Kaspa network, written in Rust. This DNS seeder provides reliable peer discovery services for Kaspa nodes by maintaining a database of active network peers and responding to DNS queries.
 
-## 特性
+## Features
 
-- 🚀 **高性能**: 使用Rust的零成本抽象和内存安全特性
-- 🔄 **异步处理**: 基于Tokio异步运行时，支持高并发
-- 🗄️ **持久化存储**: 使用Sled数据库存储节点地址信息
-- 🌐 **DNS服务**: 完整的DNS服务器实现，支持A、AAAA、TXT记录
-- 📊 **监控界面**: 内置HTTP性能分析服务器
-- 🔌 **gRPC支持**: 提供gRPC API接口（通过HTTP实现）
-- 🧵 **多线程爬取**: 支持可配置的并发网络爬取
-- 📝 **结构化日志**: 使用tracing框架的现代化日志系统
+- **High Performance**: Built with Rust for maximum performance and memory safety
+- **Multi-Network Support**: Supports both mainnet and testnet configurations
+- **Real-time Peer Discovery**: Continuously crawls the network to discover new peers
+- **DNS Protocol Support**: Responds to A and AAAA record queries
+- **gRPC API**: Provides programmatic access to peer information
+- **Health Monitoring**: Built-in system monitoring and health checks
+- **Configurable**: Extensive configuration options for different deployment scenarios
+- **Production Ready**: Includes logging, error handling, and graceful shutdown
 
-## 系统要求
+## Architecture
 
-- Rust 1.70+ 
-- Linux/macOS/Windows
-- 网络连接（用于发现Kaspa节点）
+The DNS seeder consists of several key components:
 
-## 快速开始
+- **DNS Server**: Handles DNS queries and responds with peer addresses
+- **Crawler**: Discovers and validates network peers
+- **Address Manager**: Maintains a database of known peers
+- **gRPC Server**: Provides API access to peer information
+- **Monitor**: System health and performance monitoring
+- **Network Adapter**: Handles Kaspa protocol communication
 
-### 1. 安装Rust
+## Quick Start
+
+### Prerequisites
+
+- Rust 1.70+ (2021 edition)
+- Access to Kaspa network nodes
+- Network connectivity for peer discovery
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-org/dnsseeder.git
+   cd dnsseeder
+   ```
+
+2. **Build the project:**
+   ```bash
+   cargo build --release
+   ```
+
+3. **Create configuration file:**
+   ```bash
+   cp dnsseeder.conf.example dnsseeder.conf
+   # Edit dnsseeder.conf with your settings
+   ```
+
+4. **Run the DNS seeder:**
+   ```bash
+   ./target/release/dnsseeder -c dnsseeder.conf
+   ```
+
+## Configuration
+
+### Basic Configuration
+
+Create a `dnsseeder.conf` file with the following settings:
+
+```toml
+# DNS Server Configuration
+host = "seed.kaspa.org"
+nameserver = "ns1.kaspa.org"
+listen = "0.0.0.0:53"
+
+# gRPC Server Configuration
+grpc_listen = "0.0.0.0:50051"
+
+# Application Configuration
+app_dir = "./data"
+threads = 8
+
+# Network Configuration
+testnet = false
+net_suffix = 0
+
+# Seed Node Configuration
+seeder = "127.0.0.1:16111"
+known_peers = "peer1.example.com:16111,peer2.example.com:16111"
+
+# Version Requirements
+min_proto_ver = 0
+
+# Logging Configuration
+log_level = "info"
+nologfiles = false
+
+# Performance Analysis
+profile = "8080"
+```
+
+### Configuration Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `host` | DNS server hostname | `seed.kaspa.org` |
+| `nameserver` | Nameserver hostname | `ns1.kaspa.org` |
+| `listen` | DNS server bind address | `0.0.0.0:53` |
+| `grpc_listen` | gRPC server bind address | `0.0.0.0:50051` |
+| `app_dir` | Application data directory | `./data` |
+| `threads` | Number of crawler threads | `8` |
+| `testnet` | Enable testnet mode | `false` |
+| `net_suffix` | Testnet suffix number | `0` |
+| `seeder` | Initial seed node address | `None` |
+| `known_peers` | Comma-separated known peer list | `None` |
+| `min_proto_ver` | Minimum protocol version | `0` |
+| `log_level` | Logging level | `info` |
+| `nologfiles` | Disable log files | `false` |
+| `profile` | Performance profiling port | `None` |
+
+## Usage
+
+### Command Line Options
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
+./target/release/dnsseeder [OPTIONS]
+
+Options:
+  -c, --config <FILE>          Configuration file path
+  --host <HOST>                DNS server hostname
+  --nameserver <NAMESERVER>     Nameserver hostname
+  --listen <ADDRESS>            DNS server bind address
+  --grpc-listen <ADDRESS>       gRPC server bind address
+  --app-dir <DIR>               Application data directory
+  --seeder <ADDRESS>            Seed node address
+  --known-peers <PEERS>         Known peer addresses
+  --threads <NUM>               Number of crawler threads
+  --min-proto-ver <VERSION>     Minimum protocol version
+  --testnet                     Enable testnet mode
+  --net-suffix <SUFFIX>         Testnet suffix number
+  --log-level <LEVEL>           Logging level
+  --nologfiles                  Disable log files
+  --profile <PORT>              Performance profiling port
+  -h, --help                    Print help information
+  -V, --version                 Print version information
 ```
 
-### 2. 克隆项目
+### DNS Queries
+
+The DNS seeder responds to standard DNS queries:
 
 ```bash
-git clone <repository-url>
-cd dnsseeder
+# Query for IPv4 addresses
+dig @seed.kaspa.org seed.kaspa.org A
+
+# Query for IPv6 addresses
+dig @seed.kaspa.org seed.kaspa.org AAAA
 ```
 
-### 3. 构建项目
+### gRPC API
+
+The gRPC server provides programmatic access to peer information:
 
 ```bash
-cargo build --release
+# Get peer addresses
+grpcurl -plaintext localhost:50051 dnsseeder.DnsSeederService/GetAddresses
+
+# Get statistics
+grpcurl -plaintext localhost:50051 dnsseeder.DnsSeederService/GetStats
+
+# Health check
+grpcurl -plaintext localhost:50051 dnsseeder.DnsSeederService/HealthCheck
 ```
 
-### 4. 运行DNS种子节点
+## Deployment
+
+### Production Deployment
+
+1. **System Requirements:**
+   - Linux/Unix system
+   - 2+ CPU cores
+   - 4GB+ RAM
+   - 100GB+ disk space
+   - Stable network connection
+
+2. **Security Considerations:**
+   - Run as non-root user
+   - Configure firewall rules
+   - Use TLS for gRPC (if exposed externally)
+   - Regular security updates
+
+3. **Monitoring:**
+   - Enable performance profiling
+   - Monitor system resources
+   - Set up log rotation
+   - Configure alerts for critical issues
+
+### Docker Deployment
 
 ```bash
-# 基本用法
-./target/release/dnsseeder \
-    -H seed.example.com \
-    -n ns.example.com \
-    -s 127.0.0.1:16111
+# Build Docker image
+docker build -t dnsseeder .
 
-# 测试网模式
-./target/release/dnsseeder \
-    -H seed-testnet.example.com \
-    -n ns-testnet.example.com \
-    -s 127.0.0.1:16110 \
-    --testnet
-
-# 自定义配置
-./target/release/dnsseeder \
-    -H seed.example.com \
-    -n ns.example.com \
-    -s 127.0.0.1:16111 \
-    --listen 0.0.0.0:5354 \
-    --grpclisten 0.0.0.0:3737 \
-    --threads 16 \
-    --loglevel debug
+# Run container
+docker run -d \
+  --name dnsseeder \
+  -p 53:53/udp \
+  -p 50051:50051 \
+  -v /path/to/config:/app/config \
+  -v /path/to/data:/app/data \
+  dnsseeder
 ```
 
-## 命令行参数
+### Systemd Service
 
-| 参数 | 短参数 | 描述 | 默认值 |
-|------|--------|------|--------|
-| `--appdir` | `-b` | 数据存储目录 | `~/.dnsseeder` |
-| `--peers` | `-p` | 已知节点地址列表 | 无 |
-| `--host` | `-H` | 种子DNS地址 | 必需 |
-| `--listen` | `-l` | 监听地址:端口 | `127.0.0.1:5354` |
-| `--nameserver` | `-n` | 域名服务器主机名 | 必需 |
-| `--seeder` | `-s` | 工作节点的IP地址 | 无 |
-| `--profile` |  | 启用HTTP分析服务器端口 | 无 |
-| `--grpclisten` |  | gRPC监听地址:端口 | `127.0.0.1:3737` |
-| `--minprotocolversion` | `-v` | 最小协议版本 | `0` |
-| `--minuseragentversion` |  | 最小用户代理版本 | 无 |
-| `--netsuffix` |  | 测试网网络后缀号 | `0` |
-| `--nologfiles` |  | 禁用文件日志 | false |
-| `--loglevel` |  | 日志级别 | `info` |
-| `--threads` |  | 爬取线程数 | `8` |
-| `--testnet` |  | 测试网模式 | false |
-
-## 配置示例
-
-### 主网配置
-
-```bash
-./target/release/dnsseeder \
-    -H seed.kaspa.org \
-    -n ns.kaspa.org \
-    -s 127.0.0.1:16111 \
-    --listen 0.0.0.0:53 \
-    --threads 16 \
-    --loglevel info
-```
-
-### 测试网配置
-
-```bash
-./target/release/dnsseeder \
-    -H seed-testnet.kaspa.org \
-    -n ns-testnet.kaspa.org \
-    -s 127.0.0.1:16110 \
-    --testnet \
-    --netsuffix 1 \
-    --listen 0.0.0.0:5354 \
-    --threads 8
-```
-
-## 项目结构
-
-```
-src/
-├── main.rs          # 主程序入口
-├── lib.rs           # 库模块定义
-├── config.rs        # 配置管理
-├── types.rs         # 核心类型定义
-├── manager.rs       # 地址管理器
-├── netadapter.rs    # 网络适配器
-├── dns.rs           # DNS服务器
-├── crawler.rs       # 网络爬取器
-├── grpc.rs          # gRPC服务
-├── logging.rs       # 日志系统
-├── profiling.rs     # 性能分析
-└── version.rs       # 版本信息
-```
-
-## 核心组件
-
-### 地址管理器 (AddressManager)
-
-负责管理网络节点地址的存储、检索和状态跟踪。使用Sled数据库提供持久化存储。
-
-### 网络适配器 (NetworkAdapter)
-
-处理与Kaspa节点的网络连接和通信，实现Kaspa协议的消息交换。
-
-### DNS服务器 (DnsServer)
-
-响应DNS查询请求，为新节点提供可用的网络节点信息。
-
-### 网络爬取器 (Crawler)
-
-主动发现和验证网络节点，维护活跃节点列表。
-
-## 监控和调试
-
-### HTTP分析服务器
-
-启用`--profile`参数后，可以通过HTTP访问性能监控界面：
-
-```bash
-# 启动时启用
-./target/release/dnsseeder --profile 8080
-
-# 访问监控界面
-curl http://localhost:8080/
-```
-
-### 日志系统
-
-支持多种日志级别和输出格式：
-
-```bash
-# 设置日志级别
-export RUST_LOG=dnsseeder=debug
-
-# 或通过命令行参数
-./target/release/dnsseeder --loglevel debug
-```
-
-### 健康检查
-
-```bash
-# 检查服务状态
-curl http://localhost:3737/health
-
-# 获取统计信息
-curl http://localhost:3737/stats
-
-# 获取节点地址
-curl "http://localhost:3737/addresses?limit=10"
-```
-
-## 部署建议
-
-### 系统服务
-
-创建systemd服务文件：
+Create `/etc/systemd/system/dnsseeder.service`:
 
 ```ini
 [Unit]
-Description=DNSSeeder for Kaspa Network
+Description=Kaspa DNS Seeder
 After=network.target
 
 [Service]
 Type=simple
 User=dnsseeder
-ExecStart=/usr/local/bin/dnsseeder -H seed.example.com -n ns.example.com -s 127.0.0.1:16111
+WorkingDirectory=/opt/dnsseeder
+ExecStart=/opt/dnsseeder/dnsseeder -c /opt/dnsseeder/dnsseeder.conf
 Restart=always
 RestartSec=10
 
@@ -212,133 +227,201 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-### Docker部署
+## Development
 
-```dockerfile
-FROM rust:1.70 as builder
-WORKDIR /usr/src/dnsseeder
-COPY . .
-RUN cargo build --release
+### Project Structure
 
-FROM debian:bullseye-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /usr/src/dnsseeder/target/release/dnsseeder /usr/local/bin/
-EXPOSE 53 3737
-CMD ["dnsseeder", "-H", "seed.example.com", "-n", "ns.example.com"]
+```
+src/
+├── main.rs                 # Application entry point
+├── lib.rs                  # Library exports
+├── config.rs               # Configuration management
+├── constants.rs            # Application constants
+├── dns_seed_config.rs      # DNS seed server configuration
+├── dns_seed_discovery.rs   # DNS seed discovery logic
+├── crawler.rs              # Network crawling logic
+├── manager.rs              # Address management
+├── dns.rs                  # DNS server implementation
+├── grpc.rs                 # gRPC server implementation
+├── netadapter.rs           # Network protocol adapter
+├── monitor.rs              # System monitoring
+├── profiling.rs            # Performance profiling
+├── types.rs                # Common data types
+├── checkversion.rs         # Version checking
+├── kaspa_protocol.rs       # Kaspa protocol configuration
+├── logging.rs              # Logging configuration
+└── version.rs              # Version information
 ```
 
-## 性能调优
-
-### 线程配置
-
-- **小规模部署**: 4-8个线程
-- **中等规模**: 8-16个线程  
-- **大规模部署**: 16-32个线程
-
-### 内存优化
-
-- 使用`--release`模式编译
-- 定期清理过期地址
-- 监控内存使用情况
-
-### 网络优化
-
-- 配置合适的连接超时
-- 使用连接池
-- 启用TCP_NODELAY
-
-## 故障排除
-
-### 常见问题
-
-1. **端口被占用**
-   ```bash
-   # 检查端口使用情况
-   netstat -tulpn | grep :53
-   
-   # 使用不同端口
-   ./target/release/dnsseeder --listen 127.0.0.1:5354
-   ```
-
-2. **权限不足**
-   ```bash
-   # 绑定特权端口需要root权限
-   sudo ./target/release/dnsseeder --listen 0.0.0.0:53
-   ```
-
-3. **数据库错误**
-   ```bash
-   # 清理损坏的数据库
-   rm -rf ~/.dnsseeder/addresses.db
-   ```
-
-### 调试模式
+### Building from Source
 
 ```bash
-# 启用详细日志
-RUST_LOG=dnsseeder=trace ./target/release/dnsseeder
+# Clone repository
+git clone https://github.com/your-org/dnsseeder.git
+cd dnsseeder
 
-# 启用backtrace
-RUST_BACKTRACE=1 ./target/release/dnsseeder
-```
+# Install dependencies
+cargo build
 
-## 开发
-
-### 运行测试
-
-```bash
-# 运行所有测试
+# Run tests
 cargo test
 
-# 运行特定测试
-cargo test test_crawler_creation
-
-# 运行集成测试
-cargo test --test integration_tests
+# Run with specific features
+cargo run --release -- -c config/dnsseeder.conf
 ```
 
-### 代码格式化
+### Testing
 
 ```bash
-# 格式化代码
-cargo fmt
+# Run all tests
+cargo test
 
-# 检查代码风格
-cargo clippy
+# Run specific test module
+cargo test dns_seed_discovery
+
+# Run tests with output
+cargo test -- --nocapture
+
+# Run integration tests
+cargo test --test integration
 ```
 
-### 构建文档
+## API Reference
+
+### DNS Server
+
+The DNS server responds to standard DNS queries and provides peer addresses for the Kaspa network.
+
+**Supported Record Types:**
+- A (IPv4 addresses)
+- AAAA (IPv6 addresses)
+- SOA (Start of Authority)
+
+### gRPC Service
+
+**Service:** `dnsseeder.DnsSeederService`
+
+**Methods:**
+- `GetAddresses` - Retrieve peer addresses
+- `GetStats` - Get system statistics
+- `GetAddressStats` - Get address statistics
+- `HealthCheck` - Health check endpoint
+
+### Configuration API
+
+The configuration system supports:
+- File-based configuration (TOML format)
+- Environment variable overrides
+- Command-line argument overrides
+- Runtime configuration validation
+
+## Monitoring and Maintenance
+
+### Health Checks
+
+The DNS seeder includes built-in health monitoring:
+
+- System resource monitoring (CPU, memory, network)
+- Service availability checks
+- Performance metrics collection
+- Automatic issue detection and reporting
+
+### Logging
+
+Comprehensive logging with configurable levels:
+
+- Application events and errors
+- Network activity and peer interactions
+- Performance metrics and statistics
+- System health and monitoring data
+
+### Performance Profiling
+
+Built-in performance profiling capabilities:
+
+- Request/response timing
+- Resource usage monitoring
+- Performance bottleneck identification
+- Optimization recommendations
+
+## Troubleshooting
+
+### Common Issues
+
+1. **DNS Resolution Failures:**
+   - Check network connectivity
+   - Verify DNS server configuration
+   - Review firewall settings
+
+2. **Peer Discovery Issues:**
+   - Verify seed node configuration
+   - Check network protocol compatibility
+   - Review logging for connection errors
+
+3. **Performance Problems:**
+   - Monitor system resources
+   - Adjust thread count configuration
+   - Review performance profiling data
+
+### Debug Mode
+
+Enable debug logging for troubleshooting:
 
 ```bash
-# 生成API文档
-cargo doc --open
-
-# 检查文档完整性
-cargo doc --document-private-items
+./target/release/dnsseeder -c dnsseeder.conf --log-level debug
 ```
 
-## 贡献
+### Performance Analysis
 
-欢迎贡献代码！请遵循以下步骤：
+Enable performance profiling:
 
-1. Fork项目
-2. 创建功能分支
-3. 提交更改
-4. 推送到分支
-5. 创建Pull Request
+```bash
+./target/release/dnsseeder -c dnsseeder.conf --profile 8080
+```
 
-## 许可证
+Then access profiling data at `http://localhost:8080`
 
-本项目采用ISC许可证。详见[LICENSE](LICENSE)文件。
+## Contributing
 
-## 支持
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-如有问题或建议，请：
+### Development Setup
 
-- 提交Issue
-- 参与讨论
-- 贡献代码
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
+
+### Code Style
+
+- Follow Rust coding standards
+- Use meaningful variable and function names
+- Add comprehensive documentation
+- Include unit tests for new features
+
+## License
+
+This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- **Documentation:** [Wiki](https://github.com/your-org/dnsseeder/wiki)
+- **Issues:** [GitHub Issues](https://github.com/your-org/dnsseeder/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/your-org/dnsseeder/discussions)
+- **Email:** support@your-org.com
+
+## Acknowledgments
+
+- Kaspa development team for protocol specifications
+- Rust community for excellent tooling and ecosystem
+- Contributors and maintainers of this project
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
 
 ---
 
-**注意**: 这是Rust版本的实现，提供了高性能的DNS种子节点发现功能。建议在生产环境中充分测试后再部署。
+**Note:** This DNS seeder is designed for production use in the Kaspa network. Please ensure you have proper network access and follow security best practices when deploying.

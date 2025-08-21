@@ -985,6 +985,7 @@ dependencies = [
  "kaspa-p2p-lib",
  "kaspa-utils",
  "kaspa-utils-tower",
+ "once_cell",
  "prost 0.11.9",
  "rand 0.8.5",
  "rand_core 0.6.4",

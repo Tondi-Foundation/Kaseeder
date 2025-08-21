@@ -1,7 +1,9 @@
 pub mod checkversion;
 pub mod config;
+pub mod constants;
 pub mod crawler;
 pub mod dns;
+pub mod dns_seed_config;
 pub mod dns_seed_discovery;
 pub mod grpc;
 pub mod kaspa_protocol;
@@ -14,5 +16,6 @@ pub mod types;
 pub mod version;
 
 pub use config::Config;
+pub use constants::*;
 pub use kaspa_protocol::*;
 pub use types::*;
