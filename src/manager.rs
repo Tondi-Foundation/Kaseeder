@@ -62,6 +62,11 @@ impl AddressManager {
         let peers_file = std::path::Path::new(app_dir).join(PEERS_FILENAME);
         let peers_file = peers_file.to_string_lossy().to_string();
 
+        // Ensure the directory exists
+        if let Some(parent_dir) = std::path::Path::new(&peers_file).parent() {
+            std::fs::create_dir_all(parent_dir)?;
+        }
+
         let (quit_tx, _quit_rx) = mpsc::channel(1);
 
         let manager = Self {
@@ -74,13 +79,16 @@ impl AddressManager {
         // Load saved nodes
         manager.deserialize_peers()?;
 
+        Ok(manager)
+    }
+
+    /// Start the address manager (call this after creation to start background tasks)
+    pub fn start(&self) {
         // Start address processing coroutine
-        let manager_clone = manager.clone();
+        let manager_clone = self.clone();
         tokio::spawn(async move {
             manager_clone.address_handler().await;
         });
-
-        Ok(manager)
     }
 
     /// Add address list, return the number of new addresses added
@@ -306,6 +314,14 @@ impl AddressManager {
             .map(|entry| (entry.key().clone(), entry.value().clone()))
             .collect();
 
+        // Ensure the directory exists before writing files
+        if let Some(parent_dir) = std::path::Path::new(&self.peers_file).parent() {
+            if let Err(e) = std::fs::create_dir_all(parent_dir) {
+                error!("Failed to create directory {}: {}", parent_dir.display(), e);
+                return;
+            }
+        }
+
         // Create temporary file
         let tmp_file = format!("{}.new", self.peers_file);
 
@@ -447,5 +463,62 @@ impl Drop for AddressManager {
     fn drop(&mut self) {
         // Ensure addresses are saved when exiting
         self.save_peers();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_address_manager_creates_directory() {
+        // Create a temporary directory for testing
+        let temp_dir = TempDir::new().unwrap();
+        let test_app_dir = temp_dir.path().join("test_app");
+        let test_app_dir_str = test_app_dir.to_string_lossy().to_string();
+
+        // Ensure the directory doesn't exist initially
+        assert!(!test_app_dir.exists());
+
+        // Create address manager - this should create the directory
+        let manager = AddressManager::new(&test_app_dir_str).unwrap();
+
+        // Verify the directory was created
+        assert!(test_app_dir.exists());
+
+        // Verify the peers file path is correct
+        let expected_peers_file = test_app_dir.join("peers.json");
+        assert_eq!(manager.peers_file, expected_peers_file.to_string_lossy());
+
+        // Test saving peers (this should not fail due to directory issues)
+        manager.save_peers();
+
+        // Verify the peers file was created
+        assert!(expected_peers_file.exists());
+    }
+
+    #[test]
+    fn test_save_peers_creates_parent_directory() {
+        // Create a temporary directory for testing
+        let temp_dir = TempDir::new().unwrap();
+        let test_app_dir = temp_dir.path().join("nested").join("deep").join("app");
+        let test_app_dir_str = test_app_dir.to_string_lossy().to_string();
+
+        // Ensure the nested directory doesn't exist initially
+        assert!(!test_app_dir.exists());
+
+        // Create address manager - this should create the nested directory
+        let manager = AddressManager::new(&test_app_dir_str).unwrap();
+
+        // Verify the nested directory was created
+        assert!(test_app_dir.exists());
+
+        // Test saving peers - this should create the directory structure
+        manager.save_peers();
+
+        // Verify the peers file was created in the nested directory
+        let expected_peers_file = test_app_dir.join("peers.json");
+        assert!(expected_peers_file.exists());
     }
 }

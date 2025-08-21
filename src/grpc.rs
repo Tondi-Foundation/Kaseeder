@@ -279,18 +279,26 @@ impl KaseederServiceTrait for KaseederServiceImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_grpc_server_creation() {
-        let address_manager = Arc::new(AddressManager::new("./test_data").unwrap());
+        let temp_dir = TempDir::new().unwrap();
+        let test_app_dir = temp_dir.path().join("test_app");
+        let test_app_dir_str = test_app_dir.to_string_lossy().to_string();
+        
+        let address_manager = Arc::new(AddressManager::new(&test_app_dir_str).unwrap());
         let _server = GrpcServer::new(address_manager);
         assert!(true); // Verify creation success
     }
 
     #[tokio::test]
     async fn test_get_addresses() {
-        let address_manager = Arc::new(AddressManager::new("./test_data").unwrap());
+        let temp_dir = TempDir::new().unwrap();
+        let test_app_dir = temp_dir.path().join("test_app");
+        let test_app_dir_str = test_app_dir.to_string_lossy().to_string();
+        
+        let address_manager = Arc::new(AddressManager::new(&test_app_dir_str).unwrap());
         let _server = GrpcServer::new(address_manager);
 
         let addresses = _server.get_addresses(10);

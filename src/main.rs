@@ -248,6 +248,9 @@ async fn main() -> Result<()> {
 
     // Create address manager
     let address_manager = Arc::new(AddressManager::new(&app_dir_str)?);
+    
+    // Start the address manager
+    address_manager.start();
 
     // Create consensus configuration
     let consensus_config = create_consensus_config(config.testnet, config.net_suffix);
