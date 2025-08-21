@@ -21,7 +21,6 @@ impl DnsSeedConfig {
             "seeder4.kaspad.net".to_string(),
             "kaspadns.kaspacalc.net".to_string(),
             "n-mainnet.kaspa.ws".to_string(),
-            "kaseeder-kaspa-mainnet.x-con.at".to_string(),
         ],
             testnet_servers: {
                 let mut map = HashMap::new();

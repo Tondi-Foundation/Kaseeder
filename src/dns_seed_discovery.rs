@@ -19,7 +19,7 @@ impl DnsSeedDiscovery {
                 "seeder4.kaspad.net".to_string(),
                 "kaspadns.kaspacalc.net".to_string(),
                 "n-mainnet.kaspa.ws".to_string(),
-                "kaseeder-kaspa-mainnet.x-con.at".to_string(),
+
             ],
             crate::config::NetworkParams::Testnet { suffix, .. } => vec![
                 format!("seed{}.testnet.kaspa.org", suffix),
