@@ -4,7 +4,7 @@ use std::net::IpAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 
-/// 网络地址，包装 rusty-kaspa 的 NetAddress
+/// Network address, wrapping rusty-kaspa's NetAddress
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct NetAddress {
     pub ip: IpAddr,
@@ -31,7 +31,7 @@ impl NetAddress {
     }
 }
 
-/// 网络地址扩展特性
+/// Network address extension traits
 pub trait NetAddressExt {
     fn to_string(&self) -> String;
     fn is_ipv4(&self) -> bool;
@@ -52,7 +52,7 @@ impl NetAddressExt for NetAddress {
     }
 }
 
-/// 版本消息
+/// Version message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionMessage {
     pub protocol_version: u32,
@@ -61,20 +61,20 @@ pub struct VersionMessage {
     pub nonce: u64,
 }
 
-/// 地址条目消息
+/// Address entry message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddressesMessage {
     pub addresses: Vec<NetAddress>,
 }
 
-/// 请求地址消息
+/// Request address message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestAddressesMessage {
     pub include_all_subnetworks: bool,
     pub subnetwork_id: Option<String>,
 }
 
-/// 网络消息
+/// Network message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkMessage {
     pub command: String,
@@ -99,7 +99,7 @@ impl NetworkMessage {
     }
 }
 
-/// 爬虫统计信息
+/// Crawler statistics
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CrawlerStats {
     pub total_nodes: AtomicU64,
@@ -147,7 +147,7 @@ impl CrawlerStats {
     }
 }
 
-/// DNS 记录类型
+/// DNS record type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DnsRecord {
     pub name: String,
@@ -156,8 +156,8 @@ pub struct DnsRecord {
     pub data: String,
 }
 
-/// 地址条目（保持向后兼容）
+/// Address entry (for backward compatibility)
 pub type AddressEntry = NetAddress;
 
-/// 节点信息（保持向后兼容）
+/// Node information (for backward compatibility)
 pub type NodeInfo = NetAddress;

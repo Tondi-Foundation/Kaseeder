@@ -11,24 +11,24 @@ use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, Mutex, Semaphore};
 use tracing::{debug, error, info, warn};
 
-/// 爬虫配置常量
+/// Crawler configuration constants
 
 const CRAWLER_SLEEP_INTERVAL: Duration = Duration::from_secs(10);
 const MAX_CONCURRENT_POLLS: usize = 100;
 
-/// 性能优化的爬虫管理器
+/// Performance-optimized crawler manager
 pub struct Crawler {
     address_manager: Arc<AddressManager>,
     net_adapters: Vec<Arc<DnsseedNetAdapter>>,
     config: Arc<Config>,
     quit_tx: mpsc::Sender<()>,
-    // 并发控制
+    // Concurrent control
     semaphore: Arc<Semaphore>,
-    // 性能统计
+    // Performance statistics
     stats: Arc<Mutex<CrawlerPerformanceStats>>,
 }
 
-/// 爬虫性能统计
+/// Crawler performance statistics
 #[derive(Debug, Default)]
 pub struct CrawlerPerformanceStats {
     pub total_polls: u64,
@@ -41,7 +41,7 @@ pub struct CrawlerPerformanceStats {
 }
 
 impl Crawler {
-    /// 创建新的爬虫实例
+    /// Create a new crawler instance
     pub fn new(
         address_manager: Arc<AddressManager>,
         consensus_config: Arc<ConsensusConfig>,
@@ -49,7 +49,7 @@ impl Crawler {
     ) -> Result<Self> {
         let mut net_adapters = Vec::new();
 
-        // 为每个线程创建网络适配器
+        // Create network adapter for each thread
         for _ in 0..config.threads {
             let adapter = DnsseedNetAdapter::new(consensus_config.clone())?;
             net_adapters.push(Arc::new(adapter));
@@ -57,7 +57,7 @@ impl Crawler {
 
         let (quit_tx, _quit_rx) = mpsc::channel(1);
 
-        // 创建信号量来控制并发数量
+        // Create semaphore to control concurrency
         let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_POLLS));
 
         Ok(Self {
@@ -70,20 +70,20 @@ impl Crawler {
         })
     }
 
-    /// 启动爬虫
+    /// Start crawler
     pub async fn start(&mut self) -> Result<()> {
         info!("Starting crawler with {} threads", self.config.threads);
 
-        // 初始化已知节点
+        // Initialize known peers
         self.initialize_known_peers().await?;
 
-        // 启动主爬取循环
+        // Start main crawl loop
         self.creep_loop().await?;
 
         Ok(())
     }
 
-    /// 初始化已知节点
+    /// Initialize known peers
     async fn initialize_known_peers(&self) -> Result<()> {
         if let Some(ref known_peers) = self.config.known_peers {
             let peers: Vec<NetAddress> = known_peers
@@ -106,12 +106,12 @@ impl Crawler {
                 let added = self.address_manager.add_addresses(
                     peers.clone(),
                     self.config.get_network_params().default_port(),
-                    false, // 不接受不可路由地址
+                    false, // Do not accept unroutable addresses
                 );
 
                 info!("Added {} known peers", added);
 
-                // 标记已知节点为良好状态
+                // Mark known nodes as good
                 for peer in peers {
                     self.address_manager.attempt(&peer);
                     self.address_manager.good(&peer, None, None);
@@ -122,24 +122,24 @@ impl Crawler {
         Ok(())
     }
 
-    /// 主爬取循环（优化版本）
+    /// Main crawl loop (optimized version)
     async fn creep_loop(&mut self) -> Result<()> {
         let mut batch_tasks = Vec::new();
 
         loop {
             let start_time = Instant::now();
 
-            // 获取需要轮询的地址（批量获取以减少锁竞争）
+            // Get addresses to poll (batching to reduce lock contention)
             let batch_size = (self.config.threads as usize).max(20).min(50);
             let peers = self.address_manager.addresses(batch_size as u8);
 
             if peers.is_empty() {
-                // 如果没有地址，尝试从 DNS 发现种子节点
+                // If no addresses, try to discover seed nodes from DNS
                 if self.address_manager.address_count() == 0 {
                     self.seed_from_dns().await?;
                 }
 
-                // 再次获取地址
+                // Get addresses again
                 let peers = self.address_manager.addresses(batch_size as u8);
                 if peers.is_empty() {
                     debug!(
@@ -151,7 +151,7 @@ impl Crawler {
                 }
             }
 
-            // 批量处理节点，使用信号量控制并发
+            // Batch process nodes, using semaphore to control concurrency
             for (i, addr) in peers.iter().enumerate() {
                 let permit = self.semaphore.clone().acquire_owned().await?;
                 let net_adapter = self.net_adapters[i % self.net_adapters.len()].clone();
@@ -172,7 +172,7 @@ impl Crawler {
                     )
                     .await;
 
-                    // 自动释放信号量许可
+                    // Automatically release semaphore permit
                     drop(permit);
                     result
                 });
@@ -180,7 +180,7 @@ impl Crawler {
                 batch_tasks.push(task);
             }
 
-            // 等待这一批任务完成，并收集结果
+            // Wait for this batch of tasks to complete and collect results
             let results = futures::future::join_all(batch_tasks.drain(..)).await;
             let mut successful_polls = 0;
             let mut failed_polls = 0;
@@ -199,7 +199,7 @@ impl Crawler {
                 }
             }
 
-            // 更新批处理统计
+            // Update batch processing statistics
             let batch_duration = start_time.elapsed();
             let mut stats = self.stats.lock().await;
             stats.last_poll_batch_size = peers.len();
@@ -215,18 +215,18 @@ impl Crawler {
                 batch_duration
             );
 
-            // 自适应休眠时间
+            // Adaptive sleep time
             let sleep_time = if successful_polls > 0 {
-                CRAWLER_SLEEP_INTERVAL / 2 // 成功时缩短休眠
+                CRAWLER_SLEEP_INTERVAL / 2 // Shorten sleep on success
             } else {
-                CRAWLER_SLEEP_INTERVAL * 2 // 失败时延长休眠
+                CRAWLER_SLEEP_INTERVAL * 2 // Extend sleep on failure
             };
 
             tokio::time::sleep(sleep_time).await;
         }
     }
 
-    /// 从DNS种子服务器发现节点
+    /// Discover nodes from DNS seed servers
     async fn seed_from_dns(&self) -> Result<()> {
         debug!("Attempting to seed from DNS");
 
@@ -258,12 +258,12 @@ impl Crawler {
             let added = self.address_manager.add_addresses(
                 discovered_addresses.clone(),
                 network_params.default_port(),
-                false, // 不接受不可路由地址
+                false, // Do not accept unroutable addresses
             );
 
             info!("Added {} addresses from DNS seed discovery", added);
 
-            // 标记发现的地址为尝试状态
+            // Mark discovered addresses as attempted
             for addr in discovered_addresses {
                 self.address_manager.attempt(&addr);
             }
@@ -274,7 +274,7 @@ impl Crawler {
         Ok(())
     }
 
-    /// 轮询单个节点（带性能统计）
+    /// Poll a single node (with performance statistics)
     async fn poll_single_peer_with_stats(
         net_adapter: Arc<DnsseedNetAdapter>,
         address: NetAddress,
@@ -286,7 +286,7 @@ impl Crawler {
         let result =
             Self::poll_single_peer(net_adapter, address.clone(), address_manager, config).await;
 
-        // 更新性能统计
+        // Update performance statistics
         let poll_duration = start_time.elapsed();
         let mut stats = stats.lock().await;
         let duration_ms = poll_duration.as_millis() as f64;
@@ -300,27 +300,27 @@ impl Crawler {
         result
     }
 
-    /// 轮询单个节点
+    /// Poll a single node
     async fn poll_single_peer(
         net_adapter: Arc<DnsseedNetAdapter>,
         address: NetAddress,
         address_manager: Arc<AddressManager>,
         config: Arc<Config>,
     ) -> Result<()> {
-        // 标记尝试连接
+        // Mark attempt to connect
         address_manager.attempt(&address);
 
         let peer_address = format!("{}:{}", address.ip, address.port);
         debug!("Polling peer {}", peer_address);
 
-        // 连接到节点并获取地址
+        // Connect to node and get addresses
         let (version_msg, addresses) =
             net_adapter
                 .connect_and_get_addresses(&peer_address)
                 .await
                 .map_err(|e| anyhow::anyhow!("Could not connect to {}: {}", peer_address, e))?;
 
-        // 检查协议版本
+        // Check protocol version
         if let Err(e) = VersionChecker::check_protocol_version(
             version_msg.protocol_version,
             config.min_proto_ver,
@@ -332,7 +332,7 @@ impl Crawler {
             ));
         }
 
-        // 检查用户代理版本
+        // Check user agent version
         if let Some(ref min_ua_ver) = config.min_ua_ver {
             if let Err(e) = VersionChecker::check_version(min_ua_ver, &version_msg.user_agent) {
                 return Err(anyhow::anyhow!(
@@ -343,11 +343,11 @@ impl Crawler {
             }
         }
 
-        // 添加收到的地址
+        // Add received addresses
         let added = address_manager.add_addresses(
             addresses.clone(),
             config.get_network_params().default_port(),
-            false, // 不接受不可路由地址
+            false, // Do not accept unroutable addresses
         );
 
         info!(
@@ -358,13 +358,13 @@ impl Crawler {
             added
         );
 
-        // 标记节点为良好状态
+        // Mark node as good
         address_manager.good(&address, Some(&version_msg.user_agent), None);
 
         Ok(())
     }
 
-    /// 关闭爬虫
+    /// Shutdown crawler
     pub async fn shutdown(&self) {
         let _ = self.quit_tx.send(()).await;
     }
@@ -384,7 +384,7 @@ impl Clone for Crawler {
 }
 
 impl Crawler {
-    /// 获取性能统计信息
+    /// Get performance statistics
     pub async fn get_performance_stats(&self) -> CrawlerPerformanceStats {
         let stats = self.stats.lock().await;
         CrawlerPerformanceStats {
@@ -398,20 +398,20 @@ impl Crawler {
         }
     }
 
-    /// 估计内存使用量
+    /// Estimate memory usage
     fn estimate_memory_usage() -> u64 {
-        // 简单的内存使用估计（实际应该使用更精确的方法）
-        std::process::id() as u64 * 1024 // 粗略估计
+        // Simple memory usage estimate (should use a more precise method)
+        std::process::id() as u64 * 1024 // Rough estimate
     }
 
-    /// 重置性能统计
+    /// Reset performance statistics
     pub async fn reset_performance_stats(&self) {
         let mut stats = self.stats.lock().await;
         *stats = CrawlerPerformanceStats::default();
     }
 }
 
-/// 爬虫统计信息
+/// Crawler statistics
 #[derive(Debug, Clone, Default)]
 pub struct CrawlerStats {
     pub total_peers_polled: u64,

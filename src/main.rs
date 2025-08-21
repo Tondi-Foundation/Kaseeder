@@ -84,19 +84,19 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // 解析命令行参数
-    let cli = Cli::parse();
+      // Parse command line arguments
+      let cli = Cli::parse();
 
-    // 尝试从配置文件加载配置
-    let mut config = if let Some(config_file) = &cli.config {
-        info!("Loading configuration from file: {}", config_file);
-        Config::load_from_file(config_file)?
-    } else {
-        info!("No config file specified, trying default locations");
-        Config::try_load_default()?
-    };
+      // Try to load configuration from file
+      let mut config = if let Some(config_file) = &cli.config {
+          info!("Loading configuration from file: {}", config_file);
+          Config::load_from_file(config_file)?
+      } else {
+          info!("No config file specified, trying default locations");
+          Config::try_load_default()?
+      };  
 
-    // 命令行参数覆盖配置文件
+    // Command line parameter overrides configuration file
     println!("Applying command line overrides...");
     if cli.host != "seed.kaspa.org" {
         println!("  Overriding host: {} -> {}", config.host, cli.host);
@@ -215,13 +215,13 @@ async fn main() -> Result<()> {
         println!("  Profile Port: {}", profile);
     }
 
-    // 验证配置
+    // Validate configuration
     config.validate()?;
 
-    // 显示配置信息
+    // Display configuration information
     config.display();
 
-    // 初始化日志
+    // Initialize logging
     init_logging(
         &config.log_level,
         if config.nologfiles {
@@ -231,40 +231,40 @@ async fn main() -> Result<()> {
         },
     )?;
 
-    // 显示版本信息
+    // Display version information
     info!("Version {}", env!("CARGO_PKG_VERSION"));
 
-    // 使用从配置文件加载的配置
+    // Use configuration loaded from file
     let config = Arc::new(config);
 
-    // 创建按网络类型命名空间的应用目录
+    // Create application directory with network type namespace
     let network_name = config.get_network_name();
     let namespaced_app_dir = std::path::Path::new(&config.app_dir).join(network_name);
     let app_dir_str = namespaced_app_dir.to_string_lossy().to_string();
 
-    // 确保应用目录存在
+    // Ensure application directory exists
     std::fs::create_dir_all(&namespaced_app_dir)?;
     info!("Created application directory: {}", app_dir_str);
 
-    // 创建地址管理器
+    // Create address manager
     let address_manager = Arc::new(AddressManager::new(&app_dir_str)?);
 
-    // 创建共识配置
+    // Create consensus configuration
     let consensus_config = create_consensus_config(config.testnet, config.net_suffix);
 
-    // 创建爬虫
+    // Create crawler
     let mut crawler = Crawler::new(
         address_manager.clone(),
         consensus_config.clone(),
         config.clone(),
     )?;
 
-    // 启动性能分析服务器（如果启用）
+    // Start performance analysis server (if enabled)
     let profiling_server = if let Some(profile_port) = &config.profile {
         let port = profile_port.parse::<u16>().unwrap_or(8080);
         let server = ProfilingServer::new(port);
 
-        // 启动性能分析服务器
+        // Start performance analysis server
         let server_clone = server.clone();
         tokio::spawn(async move {
             if let Err(e) = server_clone.start().await {
@@ -277,7 +277,7 @@ async fn main() -> Result<()> {
         None
     };
 
-    // 启动 DNS 服务器
+    // Start DNS server
     let dns_server = DnsServer::new(
         config.host.clone(),
         config.nameserver.clone(),
@@ -290,7 +290,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    // 启动 gRPC 服务器
+    // Start gRPC server
     let grpc_server = GrpcServer::new(address_manager.clone());
     let grpc_handle = tokio::spawn(async move {
         if let Err(e) = grpc_server.start(&config.grpc_listen).await {
@@ -298,7 +298,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    // 启动爬虫
+    // Start crawler
     let crawler_clone = crawler.clone();
     let crawler_handle = tokio::spawn(async move {
         if let Err(e) = crawler.start().await {
@@ -306,29 +306,29 @@ async fn main() -> Result<()> {
         }
     });
 
-    // 等待中断信号
+    // Wait for interrupt signal
     info!("Waiting for interrupt signal...");
     signal::ctrl_c().await?;
     info!("Received interrupt signal, shutting down...");
 
-    // 优雅关闭
+    // Graceful shutdown
     let shutdown_signal = Arc::new(AtomicBool::new(true));
     shutdown_signal.store(false, Ordering::SeqCst);
 
-    // 关闭爬虫
+    // Shutdown crawler
     crawler_clone.shutdown().await;
 
-    // 关闭性能分析服务器
+    // Shutdown performance analysis server
     if let Some(server) = profiling_server {
         if let Err(e) = server.stop().await {
             error!("Failed to stop profiling server: {}", e);
         }
     }
 
-    // 关闭地址管理器
+    // Shutdown address manager
     address_manager.shutdown().await;
 
-    // 等待所有服务完成
+    // Wait for all services to complete
     tokio::select! {
         _ = dns_handle => info!("DNS server shutdown complete"),
         _ = grpc_handle => info!("gRPC server shutdown complete"),

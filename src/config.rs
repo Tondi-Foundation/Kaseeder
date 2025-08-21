@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 use tracing::{info, warn};
 
-/// 网络参数枚举
+/// Network parameters enum
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NetworkParams {
     Mainnet { default_port: u16 },
@@ -20,7 +20,7 @@ impl NetworkParams {
     }
 }
 
-/// 配置文件结构
+/// Configuration file structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigFile {
     pub host: Option<String>,
@@ -41,45 +41,45 @@ pub struct ConfigFile {
     pub profile: Option<String>,
 }
 
-/// 应用程序配置
+/// Application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    /// DNS 服务器主机名
+    /// DNS server hostname
     pub host: String,
-    /// DNS 服务器名称服务器
+    /// DNS server nameserver
     pub nameserver: String,
-    /// DNS 服务器监听地址
+    /// DNS server listen address
     pub listen: String,
-    /// gRPC 服务器监听地址
+    /// gRPC server listen address
     pub grpc_listen: String,
-    /// 应用程序数据目录
+    /// Application data directory
     pub app_dir: String,
-    /// 种子节点地址
+    /// Seed node address
     pub seeder: Option<String>,
-    /// 已知的对等节点地址（逗号分隔）
+    /// Known peer addresses (comma-separated)
     pub known_peers: Option<String>,
-    /// 爬虫线程数
+    /// Crawler thread count
     pub threads: u8,
-    /// 最小协议版本
+    /// Minimum protocol version
     pub min_proto_ver: u16,
-    /// 最小用户代理版本
+    /// Minimum user agent version
     pub min_ua_ver: Option<String>,
-    /// 是否为测试网
+    /// Whether it is a testnet
     pub testnet: bool,
-    /// 测试网后缀
+    /// Testnet suffix
     pub net_suffix: u16,
-    /// 日志级别
+    /// Log level
     pub log_level: String,
-    /// 是否禁用日志文件
+    /// Whether to disable log files
     pub nologfiles: bool,
-    /// 错误日志文件路径
+    /// Error log file path
     pub error_log_file: Option<String>,
-    /// 性能分析端口
+    /// Performance analysis port
     pub profile: Option<String>,
 }
 
 impl Config {
-    /// 创建新的配置实例
+    /// Create a new configuration instance
     pub fn new() -> Self {
         Self {
             host: "seed.kaspa.org".to_string(),
@@ -101,7 +101,7 @@ impl Config {
         }
     }
 
-    /// 从配置文件加载配置
+    /// Load configuration from a configuration file
     pub fn load_from_file(config_path: &str) -> Result<Self> {
         let config_path = Path::new(config_path);
 
@@ -120,10 +120,10 @@ impl Config {
         let config_file: ConfigFile = toml::from_str(&config_content)
             .with_context(|| "Failed to parse config file as TOML")?;
 
-        // 从配置文件创建配置实例
+        // Create a configuration instance from the configuration file
         let mut config = Self::new();
 
-        // 应用配置文件中的值（如果存在）
+        // Apply the values from the configuration file (if they exist)
         if let Some(host) = config_file.host {
             config.host = host;
         }
@@ -177,7 +177,7 @@ impl Config {
         Ok(config)
     }
 
-    /// 尝试从默认位置加载配置文件
+    /// Try to load the configuration file from the default location
     pub fn try_load_default() -> Result<Self> {
         let default_paths = [
             "./dnsseeder.conf",
@@ -204,11 +204,11 @@ impl Config {
         Ok(Self::new())
     }
 
-    /// 保存配置到文件
+    /// Save the configuration to a file
     pub fn save_to_file(&self, config_path: &str) -> Result<()> {
         let config_path = Path::new(config_path);
 
-        // 确保父目录存在
+        // Ensure the parent directory exists
         if let Some(parent) = config_path.parent() {
             if !parent.exists() {
                 fs::create_dir_all(parent)
@@ -245,20 +245,20 @@ impl Config {
         Ok(())
     }
 
-    /// 创建默认配置文件
+    /// Create a default configuration file
     pub fn create_default_config(config_path: &str) -> Result<()> {
         let default_config = Self::new();
         default_config.save_to_file(config_path)
     }
 
-    /// 获取网络参数
+    /// Get network parameters
     pub fn get_network_params(&self) -> NetworkParams {
         if self.testnet {
-            // 根据 net_suffix 决定端口
+            // Determine the port based on net_suffix
             let default_port = if self.net_suffix == 11 {
-                16311 // testnet-11 的特殊端口
+                16311 // Special port for testnet-11
             } else {
-                16110 // 其他测试网的默认端口
+                16110 // Default port for other testnets
             };
 
             NetworkParams::Testnet {
@@ -272,7 +272,7 @@ impl Config {
         }
     }
 
-    /// 获取网络名称
+    /// Get network name
     pub fn get_network_name(&self) -> String {
         if self.testnet {
             "testnet".to_string()
@@ -281,9 +281,9 @@ impl Config {
         }
     }
 
-    /// 验证配置
+    /// Validate the configuration
     pub fn validate(&self) -> Result<()> {
-        // 验证端口号
+        // Validate the port number
         if let Some(port_str) = self.listen.split(':').last() {
             if let Ok(port) = port_str.parse::<u16>() {
                 if port == 0 {
@@ -304,7 +304,7 @@ impl Config {
             }
         }
 
-        // 验证线程数
+        // Validate the thread count
         if self.threads == 0 {
             return Err(anyhow::anyhow!("Thread count must be greater than 0"));
         }
@@ -312,7 +312,7 @@ impl Config {
             return Err(anyhow::anyhow!("Thread count too high: {}", self.threads));
         }
 
-        // 验证网络后缀
+        // Validate the network suffix
         if self.testnet && self.net_suffix > 99 {
             return Err(anyhow::anyhow!(
                 "Network suffix too high: {}",
@@ -323,7 +323,7 @@ impl Config {
         Ok(())
     }
 
-    /// 显示配置信息
+    /// Display the configuration information
     pub fn display(&self) {
         info!("Configuration:");
         info!("  Host: {}", self.host);
@@ -406,20 +406,20 @@ mod tests {
         let temp_dir = tempdir()?;
         let config_path = temp_dir.path().join("test.conf");
 
-        // 创建默认配置
+        // Create a default configuration
         Config::create_default_config(config_path.to_str().unwrap())?;
         assert!(config_path.exists());
 
-        // 加载配置
+        // Load the configuration
         let loaded_config = Config::load_from_file(config_path.to_str().unwrap())?;
         assert_eq!(loaded_config.host, "seed.kaspa.org");
 
-        // 保存配置
+        // Save the configuration
         let mut modified_config = loaded_config;
         modified_config.host = "test.kaspa.org".to_string();
         modified_config.save_to_file(config_path.to_str().unwrap())?;
 
-        // 验证修改已保存
+        // Verify that the modifications have been saved
         let reloaded_config = Config::load_from_file(config_path.to_str().unwrap())?;
         assert_eq!(reloaded_config.host, "test.kaspa.org");
 
