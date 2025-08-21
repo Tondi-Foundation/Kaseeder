@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  dnsseeder:
+    build: .
+    container_name: dnsseeder
+    restart: unless-stopped
+    ports:
+      - "5354:5354"  # DNS服务端口
+      - "3737:3737"  # gRPC/HTTP API端口
+      - "8080:8080"  # 性能分析端口（可选）
+    volumes:
+      - dnsseeder_data:/app/data
+      - dnsseeder_logs:/app/logs
+    environment:
+      - RUST_LOG=dnsseeder=info
+    command: >
+      -H seed.example.com
+      -n ns.example.com
+      -s 127.0.0.1:16111
+      --listen 0.0.0.0:5354
+      --grpclisten 0.0.0.0:3737
+      --profile 8080
+      --threads 8
+      --loglevel info
+      --appdir /app/data
+    networks:
+      - dnsseeder_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3737/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 测试网版本（可选）
+  dnsseeder-testnet:
+    build: .
+    container_name: dnsseeder-testnet
+    restart: unless-stopped
+    ports:
+      - "5355:5354"  # 使用不同端口避免冲突
+      - "3738:3737"
+      - "8081:8080"
+    volumes:
+      - dnsseeder_testnet_data:/app/data
+      - dnsseeder_testnet_logs:/app/logs
+    environment:
+      - RUST_LOG=dnsseeder=info
+    command: >
+      -H seed-testnet.example.com
+      -n ns-testnet.example.com
+      -s 127.0.0.1:16110
+      --testnet
+      --netsuffix 1
+      --listen 0.0.0.0:5354
+      --grpclisten 0.0.0.0:3737
+      --profile 8080
+      --threads 4
+      --loglevel info
+      --appdir /app/data
+    networks:
+      - dnsseeder_net
+    profiles:
+      - testnet
+
+volumes:
+  dnsseeder_data:
+    driver: local
+  dnsseeder_logs:
+    driver: local
+  dnsseeder_testnet_data:
+    driver: local
+  dnsseeder_testnet_logs:
+    driver: local
+
+networks:
+  dnsseeder_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
