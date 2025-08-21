@@ -11,7 +11,7 @@ use tracing::{debug, error, info};
 /// 地址管理器配置常量
 const PEERS_FILENAME: &str = "peers.json";
 const DEFAULT_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(60 * 60); // 1小时，与Go版本一致
-const DEFAULT_STALE_BAD_TIMEOUT: Duration = Duration::from_secs(2 * 60 * 60); // 2小时，与Go版本一致
+const NEW_NODE_POLL_INTERVAL: Duration = Duration::from_secs(30 * 60); // 新节点轮询间隔：30分钟
 const PRUNE_EXPIRE_TIMEOUT: Duration = Duration::from_secs(8 * 60 * 60); // 8小时，与Go版本一致
 const PRUNE_ADDRESS_INTERVAL: Duration = Duration::from_secs(60 * 60); // 1小时
 const DUMP_ADDRESS_INTERVAL: Duration = Duration::from_secs(10 * 60); // 10分钟
@@ -357,8 +357,14 @@ impl AddressManager {
         let last_attempt_elapsed = now.duration_since(node.last_attempt).unwrap_or_default();
         let _last_success_elapsed = now.duration_since(node.last_success).unwrap_or_default();
 
-        (!node.last_success.eq(&UNIX_EPOCH) && last_attempt_elapsed > DEFAULT_STALE_GOOD_TIMEOUT)
-            || last_attempt_elapsed > DEFAULT_STALE_BAD_TIMEOUT
+        // 对于从未成功连接的节点（新节点），如果从未尝试过或尝试时间超过较短阈值，则认为是过期的
+        if node.last_success.eq(&UNIX_EPOCH) {
+            // 新节点：如果从未尝试过，或者尝试时间超过新节点轮询间隔，则认为是过期的
+            return last_attempt_elapsed > NEW_NODE_POLL_INTERVAL;
+        }
+
+        // 对于曾经成功连接的节点，使用原有的逻辑
+        last_attempt_elapsed > DEFAULT_STALE_GOOD_TIMEOUT
     }
 
     /// 检查地址是否可路由
