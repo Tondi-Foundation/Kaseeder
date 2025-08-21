@@ -9,9 +9,9 @@ use tracing_subscriber::{
     EnvFilter,
 };
 
-/// 初始化完整的日志系统
+/// Initialize complete logging system
 pub fn init_logging(log_level: &str, log_file: Option<&str>) -> Result<()> {
-    // 设置环境过滤器
+    // Set environment filter
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level));
 

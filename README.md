@@ -32,6 +32,8 @@ The DNS seeder consists of several key components:
 - Access to Kaspa network nodes
 - Network connectivity for peer discovery
 
+> **Important Note**: The rocksdb dependency in the rusty-kaspa library that this project depends on causes compilation failures on all of our test machines. Therefore, we are temporarily using a locally modified version of rusty-kaspa with an adjusted rocksdb version. If you encounter rocksdb-related issues during compilation, please refer to the relevant documentation in the project or contact the maintainers.
+
 ### Installation
 
 1. **Clone the repository:**

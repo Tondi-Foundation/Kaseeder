@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tonic::{transport::Server, Request, Response, Status};
 use tracing::info;
 
-// 包含生成的protobuf代码
+// Include generated protobuf code
 pub mod dnsseeder {
     tonic::include_proto!("dnsseeder");
 }
@@ -20,18 +20,18 @@ use dnsseeder::{
     GetStatsRequest, GetStatsResponse, HealthCheckRequest, HealthCheckResponse,
 };
 
-/// gRPC 服务器结构
+/// gRPC server structure
 pub struct GrpcServer {
     address_manager: Arc<AddressManager>,
 }
 
 impl GrpcServer {
-    /// 创建新的 gRPC 服务器
+    /// Create a new gRPC server
     pub fn new(address_manager: Arc<AddressManager>) -> Self {
         Self { address_manager }
     }
 
-    /// 启动 gRPC 服务器
+    /// Start the gRPC server
     pub async fn start(&self, listen_addr: &str) -> Result<()> {
         let addr: std::net::SocketAddr = listen_addr.parse()?;
         info!("Starting gRPC server on {}", addr);
@@ -48,7 +48,7 @@ impl GrpcServer {
         Ok(())
     }
 
-    /// 获取统计信息
+    /// Get statistics
     pub fn get_stats(&self) -> serde_json::Value {
         let stats = self.address_manager.get_stats();
 
@@ -61,30 +61,30 @@ impl GrpcServer {
         })
     }
 
-    /// 获取地址列表
+    /// Get address list
     pub fn get_addresses(&self, limit: usize) -> Vec<NetAddress> {
-        // 获取所有类型的地址
+        // Get all types of addresses
         let mut addresses = Vec::new();
 
-        // A 记录地址
+        // A record addresses
         let a_addresses = self.address_manager.good_addresses(1, true, None);
         addresses.extend_from_slice(&a_addresses);
 
-        // AAAA 记录地址
+        // AAAA record addresses
         let aaaa_addresses = self.address_manager.good_addresses(28, true, None);
         addresses.extend_from_slice(&aaaa_addresses);
 
-        // 限制数量
+        // Limit quantity
         addresses.truncate(limit);
 
         addresses
     }
 
-    /// 获取地址统计
+    /// Get address statistics
     pub fn get_address_stats(&self) -> serde_json::Value {
         let total = self.address_manager.address_count();
 
-        // 统计 IPv4 和 IPv6 地址数量
+        // Count IPv4 and IPv6 address quantities
         let mut ipv4_count = 0;
         let mut ipv6_count = 0;
 
@@ -105,7 +105,7 @@ impl GrpcServer {
     }
 }
 
-/// gRPC 服务实现
+/// gRPC service implementation
 pub struct DnsSeederServiceImpl {
     address_manager: Arc<AddressManager>,
     start_time: SystemTime,
@@ -140,7 +140,7 @@ impl DnsSeederServiceTrait for DnsSeederServiceImpl {
 
         let mut addresses = Vec::new();
 
-        // 获取IPv4地址
+        // Get IPv4 addresses
         if req.include_ipv4 {
             let ipv4_addresses = self.address_manager.good_addresses(
                 1,
@@ -156,15 +156,15 @@ impl DnsSeederServiceTrait for DnsSeederServiceImpl {
                     addresses.push(dnsseeder::NetAddress {
                         ip: addr.ip.to_string(),
                         port: addr.port as u32,
-                        last_seen: 0,               // TODO: 实现时间戳
-                        user_agent: "".to_string(), // TODO: 实现用户代理
-                        protocol_version: 0,        // TODO: 实现协议版本
+                        last_seen: 0,               // TODO: Implement timestamp
+                        user_agent: "".to_string(), // TODO: Implement user agent
+                        protocol_version: 0,        // TODO: Implement protocol version
                     });
                 }
             }
         }
 
-        // 获取IPv6地址
+        // Get IPv6 addresses
         if req.include_ipv6 {
             let ipv6_addresses = self.address_manager.good_addresses(
                 28,
@@ -180,9 +180,9 @@ impl DnsSeederServiceTrait for DnsSeederServiceImpl {
                     addresses.push(dnsseeder::NetAddress {
                         ip: addr.ip.to_string(),
                         port: addr.port as u32,
-                        last_seen: 0,               // TODO: 实现时间戳
-                        user_agent: "".to_string(), // TODO: 实现用户代理
-                        protocol_version: 0,        // TODO: 实现协议版本
+                        last_seen: 0,               // TODO: Implement timestamp
+                        user_agent: "".to_string(), // TODO: Implement user agent
+                        protocol_version: 0,        // TODO: Implement protocol version
                     });
                 }
             }
@@ -231,7 +231,7 @@ impl DnsSeederServiceTrait for DnsSeederServiceImpl {
     ) -> Result<Response<GetAddressStatsResponse>, Status> {
         let total = self.address_manager.address_count();
 
-        // 统计不同类型的地址
+        // Count different types of addresses
         let mut ipv4_count = 0;
         let mut ipv6_count = 0;
         let mut good_count = 0;
@@ -244,7 +244,7 @@ impl DnsSeederServiceTrait for DnsSeederServiceImpl {
                 ipv6_count += 1;
             }
 
-            // TODO: 实现 good/stale 分类逻辑
+            // TODO: Implement good/stale classification logic
             good_count += 1;
         }
 
@@ -285,7 +285,7 @@ mod tests {
     async fn test_grpc_server_creation() {
         let address_manager = Arc::new(AddressManager::new("./test_data").unwrap());
         let _server = GrpcServer::new(address_manager);
-        assert!(true); // 验证创建成功
+        assert!(true); // Verify creation success
     }
 
     #[tokio::test]
@@ -294,6 +294,6 @@ mod tests {
         let _server = GrpcServer::new(address_manager);
 
         let addresses = _server.get_addresses(10);
-        assert_eq!(addresses.len(), 0); // 新创建的地址管理器应该是空的
+        assert_eq!(addresses.len(), 0); // Newly created address manager should be empty
     }
 }

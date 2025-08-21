@@ -12,9 +12,9 @@ impl VersionInfo {
     pub fn new() -> Self {
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            git_commit: "unknown".to_string(), // 移除对VERGEN_GIT_SHA的依赖
-            build_date: chrono::Utc::now().to_rfc3339(), // 使用当前时间
-            rust_version: "unknown".to_string(), // 移除对VERGEN_RUSTC_SEMVER的依赖
+            git_commit: "unknown".to_string(), // Remove dependency on VERGEN_GIT_SHA
+            build_date: chrono::Utc::now().to_rfc3339(), // Use current time
+            rust_version: "unknown".to_string(), // Remove dependency on VERGEN_RUSTC_SEMVER
         }
     }
 

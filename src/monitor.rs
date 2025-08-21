@@ -174,11 +174,11 @@ impl SystemMonitor {
                 (metrics.avg_response_time_ms * 0.9) + (response_time_ms * 0.1);
         }
 
-        // 更新QPS（简化实现）
+        // Update QPS (simplified implementation)
         metrics.dns_queries_per_second = metrics.dns_queries_per_second * 0.9 + 0.1;
     }
 
-    /// 更新gRPC请求统计
+    /// Update gRPC request statistics
     pub async fn record_grpc_request(&self, response_time: Duration) {
         let mut metrics = self.performance_metrics.lock().await;
 
@@ -193,7 +193,7 @@ impl SystemMonitor {
         metrics.grpc_requests_per_second = metrics.grpc_requests_per_second * 0.9 + 0.1;
     }
 
-    /// 获取系统状态报告
+    /// Get system status report
     pub async fn get_status_report(&self) -> SystemStatusReport {
         let uptime = self.start_time.elapsed().unwrap_or_default();
         let health = self.health_status.lock().await.clone();
@@ -212,13 +212,13 @@ impl SystemMonitor {
         }
     }
 
-    /// 记录日志统计
+    /// Record log statistics
     pub async fn record_log(&self, level: &tracing::Level) {
         let mut stats = self.logging_stats.lock().await;
         stats.record_log(level);
     }
 
-    /// 获取健康状态
+    /// Get health status
     pub async fn is_healthy(&self) -> bool {
         let health = self.health_status.lock().await;
         health.is_healthy
@@ -239,7 +239,7 @@ mod tests {
     async fn test_status_report() {
         let monitor = SystemMonitor::new();
         let report = monitor.get_status_report().await;
-        assert!(report.uptime_seconds < 1); // 刚创建的应该很短
+        assert!(report.uptime_seconds < 1); // Should be very short for newly created
     }
 
     #[tokio::test]
