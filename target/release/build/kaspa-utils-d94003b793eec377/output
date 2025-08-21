@@ -1,4 +1,0 @@
-cargo::rerun-if-changed=/home/arthur/AvatoLabs/rusty-kaspa/.git/HEAD
-cargo::rerun-if-changed=/home/arthur/AvatoLabs/rusty-kaspa/.git/refs/heads/master
-cargo:rustc-env=RUSTY_KASPA_GIT_FULL_COMMIT_HASH=19e5af269a99305e38d90791797e547ed1aa517d
-cargo:rustc-env=RUSTY_KASPA_GIT_SHORT_COMMIT_HASH=19e5af2
