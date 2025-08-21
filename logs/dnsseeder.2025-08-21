@@ -4350,3 +4350,368 @@
 2025-08-21T09:02:17.742419848Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:69: Querying DNS seeder mainnet-dnsseed-2.kaspanet.org (with proxy support: true)
 2025-08-21T09:02:17.742423936Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:104: Proxy is enabled but DNS resolution through proxy is not supported in current implementation
 2025-08-21T09:02:17.742427411Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:105: Will use direct DNS resolution instead
+2025-08-21T09:02:59.26950106Z  WARN tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:118: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:02:59.269512134Z  WARN tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:79: Proxy query returned no addresses for mainnet-dnsseed-2.kaspanet.org, trying direct connection
+2025-08-21T09:03:30.521351008Z  WARN tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:118: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:03:30.521361239Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:90: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-2.kaspanet.org via direct connection
+2025-08-21T09:03:30.521366996Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:27: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-2.kaspanet.org
+2025-08-21T09:03:30.521371791Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:69: Querying DNS seeder seeder1.kaspad.net (with proxy support: true)
+2025-08-21T09:03:30.521376089Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:104: Proxy is enabled but DNS resolution through proxy is not supported in current implementation
+2025-08-21T09:03:30.521380046Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:105: Will use direct DNS resolution instead
+2025-08-21T09:03:30.537436135Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:75: Retrieved 27 addresses from DNS seeder seeder1.kaspad.net via proxy
+2025-08-21T09:03:30.537444173Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:27: Discovered 27 addresses from DNS seed server: seeder1.kaspad.net
+2025-08-21T09:03:30.53744915Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:69: Querying DNS seeder seeder2.kaspad.net (with proxy support: true)
+2025-08-21T09:03:30.537454239Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:104: Proxy is enabled but DNS resolution through proxy is not supported in current implementation
+2025-08-21T09:03:30.537458231Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:105: Will use direct DNS resolution instead
+2025-08-21T09:03:30.55586599Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:75: Retrieved 28 addresses from DNS seeder seeder2.kaspad.net via proxy
+2025-08-21T09:03:30.555873652Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:27: Discovered 28 addresses from DNS seed server: seeder2.kaspad.net
+2025-08-21T09:03:30.555878679Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:69: Querying DNS seeder seeder3.kaspad.net (with proxy support: true)
+2025-08-21T09:03:30.555883501Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:104: Proxy is enabled but DNS resolution through proxy is not supported in current implementation
+2025-08-21T09:03:30.555887622Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:105: Will use direct DNS resolution instead
+2025-08-21T09:03:30.572380594Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:75: Retrieved 28 addresses from DNS seeder seeder3.kaspad.net via proxy
+2025-08-21T09:03:30.572386931Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:27: Discovered 28 addresses from DNS seed server: seeder3.kaspad.net
+2025-08-21T09:03:30.572390414Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:69: Querying DNS seeder seeder4.kaspad.net (with proxy support: true)
+2025-08-21T09:03:30.572393338Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:104: Proxy is enabled but DNS resolution through proxy is not supported in current implementation
+2025-08-21T09:03:30.5723955Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:105: Will use direct DNS resolution instead
+2025-08-21T09:03:30.593205009Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:75: Retrieved 28 addresses from DNS seeder seeder4.kaspad.net via proxy
+2025-08-21T09:03:30.593218574Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:27: Discovered 28 addresses from DNS seed server: seeder4.kaspad.net
+2025-08-21T09:03:30.593226356Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:69: Querying DNS seeder kaspadns.kaspacalc.net (with proxy support: true)
+2025-08-21T09:03:30.593231938Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:104: Proxy is enabled but DNS resolution through proxy is not supported in current implementation
+2025-08-21T09:03:30.593235971Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:105: Will use direct DNS resolution instead
+2025-08-21T09:03:30.607221606Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:75: Retrieved 17 addresses from DNS seeder kaspadns.kaspacalc.net via proxy
+2025-08-21T09:03:30.607230841Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:27: Discovered 17 addresses from DNS seed server: kaspadns.kaspacalc.net
+2025-08-21T09:03:30.60723562Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:69: Querying DNS seeder n-mainnet.kaspa.ws (with proxy support: true)
+2025-08-21T09:03:30.607240485Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:104: Proxy is enabled but DNS resolution through proxy is not supported in current implementation
+2025-08-21T09:03:30.607244637Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:105: Will use direct DNS resolution instead
+2025-08-21T09:03:30.627582773Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:75: Retrieved 17 addresses from DNS seeder n-mainnet.kaspa.ws via proxy
+2025-08-21T09:03:30.627594729Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:27: Discovered 17 addresses from DNS seed server: n-mainnet.kaspa.ws
+2025-08-21T09:03:30.627600394Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:69: Querying DNS seeder dnsseeder-kaspa-mainnet.x-con.at (with proxy support: true)
+2025-08-21T09:03:30.627605748Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:104: Proxy is enabled but DNS resolution through proxy is not supported in current implementation
+2025-08-21T09:03:30.627609725Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:105: Will use direct DNS resolution instead
+2025-08-21T09:03:30.643747635Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:75: Retrieved 17 addresses from DNS seeder dnsseeder-kaspa-mainnet.x-con.at via proxy
+2025-08-21T09:03:30.643763461Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:27: Discovered 17 addresses from DNS seed server: dnsseeder-kaspa-mainnet.x-con.at
+2025-08-21T09:03:30.643772677Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:36: Total discovered addresses from DNS: 162
+2025-08-21T09:03:30.643919508Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::crawler: src/crawler.rs:233: Added 89 addresses from DNS seed discovery
+2025-08-21T09:03:40.645227508Z  INFO tokio-runtime-worker ThreadId(19) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 13.998µs
+2025-08-21T09:04:00.647261657Z  INFO tokio-runtime-worker ThreadId(19) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 14.087µs
+2025-08-21T09:04:20.64870401Z  INFO tokio-runtime-worker ThreadId(19) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 16.225µs
+2025-08-21T09:04:42.52065803Z  INFO main ThreadId(01) dnsseeder: src/main.rs:189: Version 0.1.0
+2025-08-21T09:04:42.52067679Z  INFO main ThreadId(01) dnsseeder: src/main.rs:201: Created application directory: ./test_data/mainnet
+2025-08-21T09:04:42.520751505Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:312: 0 nodes loaded
+2025-08-21T09:04:42.52080773Z  INFO main ThreadId(01) dnsseeder: src/main.rs:264: Waiting for interrupt signal...
+2025-08-21T09:04:42.520825369Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:04:42.520830599Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:04:42.520835889Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::grpc: src/grpc.rs:35: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:04:42.5208417Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:04:42.520867374Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-1.kaspanet.org (with proxy support: true)
+2025-08-21T09:04:42.520874641Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:04:42.520938392Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:75: Profiling server listening on 0.0.0.0:8080
+2025-08-21T09:04:42.521860128Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::manager: src/manager.rs:272: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:04:53.983682848Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:186: Proxy connectivity confirmed, but DNS resolution failed for mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:04:53.983693048Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for mainnet-dnsseed-1.kaspanet.org, falling back to direct resolution
+2025-08-21T09:05:16.737935284Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:05:16.737946701Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:81: Proxy query returned no addresses for mainnet-dnsseed-1.kaspanet.org, trying direct connection
+2025-08-21T09:05:42.726684472Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:05:42.726696187Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-1.kaspanet.org via direct connection
+2025-08-21T09:05:42.72670161Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:05:42.726707067Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-2.kaspanet.org (with proxy support: true)
+2025-08-21T09:05:42.726711447Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:05:52.954538911Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:186: Proxy connectivity confirmed, but DNS resolution failed for mainnet-dnsseed-2.kaspanet.org
+2025-08-21T09:05:52.95454942Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for mainnet-dnsseed-2.kaspanet.org, falling back to direct resolution
+2025-08-21T09:06:15.730373635Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:06:15.73038437Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:81: Proxy query returned no addresses for mainnet-dnsseed-2.kaspanet.org, trying direct connection
+2025-08-21T09:06:15.730708846Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:06:15.730715176Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-2.kaspanet.org via direct connection
+2025-08-21T09:06:15.730719367Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-2.kaspanet.org
+2025-08-21T09:06:15.730723248Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder1.kaspad.net (with proxy support: true)
+2025-08-21T09:06:15.730727109Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:06:25.963241931Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:186: Proxy connectivity confirmed, but DNS resolution failed for seeder1.kaspad.net
+2025-08-21T09:06:25.963251251Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder1.kaspad.net, falling back to direct resolution
+2025-08-21T09:06:25.981130464Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder1.kaspad.net via proxy
+2025-08-21T09:06:25.98114094Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder1.kaspad.net
+2025-08-21T09:06:25.981146282Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder2.kaspad.net (with proxy support: true)
+2025-08-21T09:06:25.981150978Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:06:36.196399227Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:186: Proxy connectivity confirmed, but DNS resolution failed for seeder2.kaspad.net
+2025-08-21T09:06:36.196406615Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder2.kaspad.net, falling back to direct resolution
+2025-08-21T09:06:36.217179015Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder2.kaspad.net via proxy
+2025-08-21T09:06:36.21718493Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder2.kaspad.net
+2025-08-21T09:06:36.217188809Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder3.kaspad.net (with proxy support: true)
+2025-08-21T09:06:36.217192Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:06:46.582057319Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:186: Proxy connectivity confirmed, but DNS resolution failed for seeder3.kaspad.net
+2025-08-21T09:06:46.582067117Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder3.kaspad.net, falling back to direct resolution
+2025-08-21T09:06:46.602492538Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder3.kaspad.net via proxy
+2025-08-21T09:06:46.602501291Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder3.kaspad.net
+2025-08-21T09:06:46.602507533Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder4.kaspad.net (with proxy support: true)
+2025-08-21T09:06:46.602512173Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:06:57.088159916Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:186: Proxy connectivity confirmed, but DNS resolution failed for seeder4.kaspad.net
+2025-08-21T09:06:57.088171644Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder4.kaspad.net, falling back to direct resolution
+2025-08-21T09:06:57.105222272Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder4.kaspad.net via proxy
+2025-08-21T09:06:57.105236574Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder4.kaspad.net
+2025-08-21T09:06:57.105242513Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder kaspadns.kaspacalc.net (with proxy support: true)
+2025-08-21T09:06:57.105247241Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:07:02.238926318Z  INFO main ThreadId(01) dnsseeder: src/main.rs:189: Version 0.1.0
+2025-08-21T09:07:02.238952211Z  INFO main ThreadId(01) dnsseeder: src/main.rs:201: Created application directory: ./test_data/mainnet
+2025-08-21T09:07:02.239055595Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:312: 0 nodes loaded
+2025-08-21T09:07:02.239139245Z  INFO main ThreadId(01) dnsseeder: src/main.rs:264: Waiting for interrupt signal...
+2025-08-21T09:07:02.239168224Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::grpc: src/grpc.rs:35: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:07:02.239174625Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:07:02.239185838Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:07:02.2391927Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:07:02.23922461Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-1.kaspanet.org (with proxy support: true)
+2025-08-21T09:07:02.239233133Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: socks5://127.0.0.1:7898
+2025-08-21T09:07:02.239239529Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: socks5 for DNS resolution
+2025-08-21T09:07:02.23931813Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::profiling: src/profiling.rs:75: Profiling server listening on 0.0.0.0:8080
+2025-08-21T09:07:02.240200155Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::manager: src/manager.rs:272: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:07:09.832619188Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for mainnet-dnsseed-1.kaspanet.org, falling back to direct resolution
+2025-08-21T09:07:22.764525655Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:07:22.764533381Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:81: Proxy query returned no addresses for mainnet-dnsseed-1.kaspanet.org, trying direct connection
+2025-08-21T09:07:22.764864025Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:07:22.764868811Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-1.kaspanet.org via direct connection
+2025-08-21T09:07:22.764871696Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:07:22.76487505Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-2.kaspanet.org (with proxy support: true)
+2025-08-21T09:07:22.764878162Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: socks5://127.0.0.1:7898
+2025-08-21T09:07:22.764880902Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: socks5 for DNS resolution
+2025-08-21T09:07:30.245488527Z  WARN tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for mainnet-dnsseed-2.kaspanet.org, falling back to direct resolution
+2025-08-21T09:07:40.522601725Z  WARN tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:07:40.522617449Z  WARN tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:81: Proxy query returned no addresses for mainnet-dnsseed-2.kaspanet.org, trying direct connection
+2025-08-21T09:07:40.523092862Z  WARN tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:07:40.523099442Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-2.kaspanet.org via direct connection
+2025-08-21T09:07:40.523104211Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-2.kaspanet.org
+2025-08-21T09:07:40.523110406Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder1.kaspad.net (with proxy support: true)
+2025-08-21T09:07:40.52311418Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: socks5://127.0.0.1:7898
+2025-08-21T09:07:40.523118716Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: socks5 for DNS resolution
+2025-08-21T09:07:46.451659555Z  WARN tokio-runtime-worker ThreadId(20) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder1.kaspad.net, falling back to direct resolution
+2025-08-21T09:07:46.462516578Z  INFO tokio-runtime-worker ThreadId(20) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder1.kaspad.net via proxy
+2025-08-21T09:07:46.462522342Z  INFO tokio-runtime-worker ThreadId(20) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder1.kaspad.net
+2025-08-21T09:07:46.462525637Z  INFO tokio-runtime-worker ThreadId(20) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder2.kaspad.net (with proxy support: true)
+2025-08-21T09:07:46.462528356Z  INFO tokio-runtime-worker ThreadId(20) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: socks5://127.0.0.1:7898
+2025-08-21T09:07:46.462531281Z  INFO tokio-runtime-worker ThreadId(20) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: socks5 for DNS resolution
+2025-08-21T09:07:52.483393317Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder2.kaspad.net, falling back to direct resolution
+2025-08-21T09:07:52.502435167Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder2.kaspad.net via proxy
+2025-08-21T09:07:52.502442578Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder2.kaspad.net
+2025-08-21T09:07:52.502558243Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder3.kaspad.net (with proxy support: true)
+2025-08-21T09:07:52.502563591Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: socks5://127.0.0.1:7898
+2025-08-21T09:07:52.502567456Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: socks5 for DNS resolution
+2025-08-21T09:07:58.469168427Z  WARN tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder3.kaspad.net, falling back to direct resolution
+2025-08-21T09:07:58.485716077Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder3.kaspad.net via proxy
+2025-08-21T09:07:58.485722821Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder3.kaspad.net
+2025-08-21T09:07:58.485745821Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder4.kaspad.net (with proxy support: true)
+2025-08-21T09:07:58.485749166Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: socks5://127.0.0.1:7898
+2025-08-21T09:07:58.485752984Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: socks5 for DNS resolution
+2025-08-21T09:08:04.418983448Z  WARN tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder4.kaspad.net, falling back to direct resolution
+2025-08-21T09:08:04.436973609Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder4.kaspad.net via proxy
+2025-08-21T09:08:04.436982188Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder4.kaspad.net
+2025-08-21T09:08:04.43698676Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder kaspadns.kaspacalc.net (with proxy support: true)
+2025-08-21T09:08:04.436990285Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: socks5://127.0.0.1:7898
+2025-08-21T09:08:04.436993909Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: socks5 for DNS resolution
+2025-08-21T09:08:12.22075916Z  INFO main ThreadId(01) dnsseeder: src/main.rs:189: Version 0.1.0
+2025-08-21T09:08:12.220779995Z  INFO main ThreadId(01) dnsseeder: src/main.rs:201: Created application directory: ./test_data/mainnet
+2025-08-21T09:08:12.220866703Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:312: 0 nodes loaded
+2025-08-21T09:08:12.220946201Z  INFO main ThreadId(01) dnsseeder: src/main.rs:264: Waiting for interrupt signal...
+2025-08-21T09:08:12.220978673Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:08:12.220984069Z  INFO tokio-runtime-worker ThreadId(10) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:08:12.220990186Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::grpc: src/grpc.rs:35: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:08:12.22099791Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:08:12.221019032Z  INFO tokio-runtime-worker ThreadId(10) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-1.kaspanet.org (with proxy support: true)
+2025-08-21T09:08:12.221027773Z  INFO tokio-runtime-worker ThreadId(10) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:08:12.22103363Z  INFO tokio-runtime-worker ThreadId(10) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:08:12.221134693Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::profiling: src/profiling.rs:75: Profiling server listening on 0.0.0.0:8080
+2025-08-21T09:08:12.222208054Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::manager: src/manager.rs:272: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:08:32.408329253Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:08:32.40833858Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for mainnet-dnsseed-1.kaspanet.org, falling back to direct resolution
+2025-08-21T09:08:46.575002939Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:08:46.575010859Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:81: Proxy query returned no addresses for mainnet-dnsseed-1.kaspanet.org, trying direct connection
+2025-08-21T09:08:46.575257955Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:08:46.575262115Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-1.kaspanet.org via direct connection
+2025-08-21T09:08:46.575265218Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:08:46.575267752Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-2.kaspanet.org (with proxy support: true)
+2025-08-21T09:08:46.575270521Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:08:46.575273032Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:08:57.06108289Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for mainnet-dnsseed-2.kaspanet.org
+2025-08-21T09:08:57.061090921Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for mainnet-dnsseed-2.kaspanet.org, falling back to direct resolution
+2025-08-21T09:09:04.185697564Z  INFO main ThreadId(01) dnsseeder: src/main.rs:189: Version 0.1.0
+2025-08-21T09:09:04.185712482Z  INFO main ThreadId(01) dnsseeder: src/main.rs:201: Created application directory: ./test_data/mainnet
+2025-08-21T09:09:04.185763766Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:312: 0 nodes loaded
+2025-08-21T09:09:04.185807981Z  INFO main ThreadId(01) dnsseeder: src/main.rs:264: Waiting for interrupt signal...
+2025-08-21T09:09:04.185825749Z  INFO tokio-runtime-worker ThreadId(15) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:09:04.1858323Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::grpc: src/grpc.rs:35: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:09:04.185838981Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:09:04.185846094Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:09:04.185872134Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-1.kaspanet.org (with proxy support: true)
+2025-08-21T09:09:04.185879694Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:09:04.185885267Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:09:04.185964434Z ERROR tokio-runtime-worker ThreadId(15) dnsseeder: src/main.rs:243: DNS server error: Address already in use (os error 98)
+2025-08-21T09:09:04.185967973Z ERROR tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:58: Profiling server error: Address already in use (os error 98)
+2025-08-21T09:09:04.185974396Z ERROR tokio-runtime-worker ThreadId(22) dnsseeder: src/main.rs:251: gRPC server error: gRPC server error: transport error
+2025-08-21T09:09:04.187024878Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::manager: src/manager.rs:272: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:09:07.521544446Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:09:07.521554392Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:81: Proxy query returned no addresses for mainnet-dnsseed-2.kaspanet.org, trying direct connection
+2025-08-21T09:09:07.521792043Z  WARN tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:09:07.521797181Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-2.kaspanet.org via direct connection
+2025-08-21T09:09:07.521801074Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-2.kaspanet.org
+2025-08-21T09:09:07.521807585Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder1.kaspad.net (with proxy support: true)
+2025-08-21T09:09:07.521810784Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:09:07.52181469Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:09:10.862513622Z  INFO                 main ThreadId(01) dnsseeder: src/main.rs:266: Received interrupt signal, shutting down...
+2025-08-21T09:09:10.862522355Z  INFO                 main ThreadId(01) dnsseeder::profiling: src/profiling.rs:280: Profiling server stop signal sent
+2025-08-21T09:09:10.86253025Z  INFO                 main ThreadId(01) dnsseeder: src/main.rs:287: DNS server shutdown complete
+2025-08-21T09:09:10.862532546Z  INFO                 main ThreadId(01) dnsseeder: src/main.rs:292: All services shutdown complete
+2025-08-21T09:09:47.644125647Z  INFO main ThreadId(01) dnsseeder: src/main.rs:189: Version 0.1.0
+2025-08-21T09:09:47.644136129Z  INFO main ThreadId(01) dnsseeder: src/main.rs:201: Created application directory: ./test_data/mainnet
+2025-08-21T09:09:47.644180083Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:312: 0 nodes loaded
+2025-08-21T09:09:47.64421772Z  INFO main ThreadId(01) dnsseeder: src/main.rs:264: Waiting for interrupt signal...
+2025-08-21T09:09:47.644243778Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:09:47.644264226Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:09:47.644322741Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:75: Profiling server listening on 0.0.0.0:8080
+2025-08-21T09:09:47.644331241Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::grpc: src/grpc.rs:35: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:09:47.64433522Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:09:47.644352007Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-1.kaspanet.org (with proxy support: true)
+2025-08-21T09:09:47.644356801Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:09:47.644361178Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:09:47.645355101Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::manager: src/manager.rs:272: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:09:58.172730036Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:09:58.172739291Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for mainnet-dnsseed-1.kaspanet.org, falling back to direct resolution
+2025-08-21T09:10:42.727502525Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:10:42.72751346Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:81: Proxy query returned no addresses for mainnet-dnsseed-1.kaspanet.org, trying direct connection
+2025-08-21T09:10:55.726665322Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:10:55.726678033Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-1.kaspanet.org via direct connection
+2025-08-21T09:10:55.726683026Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:10:55.726687414Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-2.kaspanet.org (with proxy support: true)
+2025-08-21T09:10:55.726691324Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:10:55.726695466Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:11:05.943466876Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for mainnet-dnsseed-2.kaspanet.org
+2025-08-21T09:11:05.943473332Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for mainnet-dnsseed-2.kaspanet.org, falling back to direct resolution
+2025-08-21T09:11:37.270569687Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:11:37.270576367Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:81: Proxy query returned no addresses for mainnet-dnsseed-2.kaspanet.org, trying direct connection
+2025-08-21T09:12:13.721478368Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:12:13.721485186Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-2.kaspanet.org via direct connection
+2025-08-21T09:12:13.72148891Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-2.kaspanet.org
+2025-08-21T09:12:13.721491747Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder1.kaspad.net (with proxy support: true)
+2025-08-21T09:12:13.721494292Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:12:13.72149715Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:12:23.617240139Z  INFO                 main ThreadId(01) dnsseeder: src/main.rs:266: Received interrupt signal, shutting down...
+2025-08-21T09:12:23.617249958Z  INFO                 main ThreadId(01) dnsseeder::profiling: src/profiling.rs:280: Profiling server stop signal sent
+2025-08-21T09:12:23.718382165Z  INFO tokio-runtime-worker ThreadId(03) dnsseeder::profiling: src/profiling.rs:120: Profiling server stopped
+2025-08-21T09:12:23.931662858Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for seeder1.kaspad.net
+2025-08-21T09:12:23.931669911Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder1.kaspad.net, falling back to direct resolution
+2025-08-21T09:12:23.948367259Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder1.kaspad.net via proxy
+2025-08-21T09:12:23.948372846Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder1.kaspad.net
+2025-08-21T09:12:23.948376284Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder2.kaspad.net (with proxy support: true)
+2025-08-21T09:12:23.948379413Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:12:23.94838229Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:12:35.463385261Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for seeder2.kaspad.net
+2025-08-21T09:12:35.463394246Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder2.kaspad.net, falling back to direct resolution
+2025-08-21T09:12:35.480015271Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder2.kaspad.net via proxy
+2025-08-21T09:12:35.480021633Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder2.kaspad.net
+2025-08-21T09:12:35.480087435Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder3.kaspad.net (with proxy support: true)
+2025-08-21T09:12:35.480091862Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:12:35.480096077Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:12:45.958111839Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for seeder3.kaspad.net
+2025-08-21T09:12:45.95811915Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder3.kaspad.net, falling back to direct resolution
+2025-08-21T09:12:45.978144049Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder3.kaspad.net via proxy
+2025-08-21T09:12:45.978150207Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder3.kaspad.net
+2025-08-21T09:12:45.978249492Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder4.kaspad.net (with proxy support: true)
+2025-08-21T09:12:45.978253323Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:12:45.978256547Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:12:56.194584951Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for seeder4.kaspad.net
+2025-08-21T09:12:56.194593018Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for seeder4.kaspad.net, falling back to direct resolution
+2025-08-21T09:12:56.212207974Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 28 addresses from DNS seeder seeder4.kaspad.net via proxy
+2025-08-21T09:12:56.212213853Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder4.kaspad.net
+2025-08-21T09:12:56.212217293Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder kaspadns.kaspacalc.net (with proxy support: true)
+2025-08-21T09:12:56.212219923Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:12:56.212223295Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:13:06.677357699Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for kaspadns.kaspacalc.net
+2025-08-21T09:13:06.677371626Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for kaspadns.kaspacalc.net, falling back to direct resolution
+2025-08-21T09:13:06.691685393Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:77: Retrieved 17 addresses from DNS seeder kaspadns.kaspacalc.net via proxy
+2025-08-21T09:13:06.691692384Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 17 addresses from DNS seed server: kaspadns.kaspacalc.net
+2025-08-21T09:13:06.691748017Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder n-mainnet.kaspa.ws (with proxy support: true)
+2025-08-21T09:13:06.691750898Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:13:06.691754427Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: http for DNS resolution
+2025-08-21T09:13:24.741002691Z  INFO main ThreadId(01) dnsseeder: src/main.rs:189: Version 0.1.0
+2025-08-21T09:13:24.741023502Z  INFO main ThreadId(01) dnsseeder: src/main.rs:201: Created application directory: ./test_data/mainnet
+2025-08-21T09:13:24.741096559Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:312: 0 nodes loaded
+2025-08-21T09:13:24.741153683Z  INFO main ThreadId(01) dnsseeder: src/main.rs:264: Waiting for interrupt signal...
+2025-08-21T09:13:24.741166453Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:13:24.74116897Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:13:24.741182749Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::grpc: src/grpc.rs:35: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:13:24.741227519Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:13:24.741262054Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-1.kaspanet.org (with proxy support: true)
+2025-08-21T09:13:24.741266679Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::profiling: src/profiling.rs:75: Profiling server listening on 0.0.0.0:8080
+2025-08-21T09:13:24.741268423Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:13:24.741271561Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: auto for DNS resolution
+2025-08-21T09:13:24.742355251Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::manager: src/manager.rs:272: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:13:35.01966636Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:220: Proxy connectivity confirmed, but DNS resolution failed for mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:13:35.019677192Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:128: Proxy DNS resolution returned no addresses for mainnet-dnsseed-1.kaspanet.org, falling back to direct resolution
+2025-08-21T09:13:45.54127143Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:13:45.541278711Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:81: Proxy query returned no addresses for mainnet-dnsseed-1.kaspanet.org, trying direct connection
+2025-08-21T09:13:45.541427448Z  WARN tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:13:45.541431113Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-1.kaspanet.org via direct connection
+2025-08-21T09:13:45.541433615Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:13:45.541435831Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-2.kaspanet.org (with proxy support: true)
+2025-08-21T09:13:45.541438316Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:119: Attempting DNS resolution through proxy: http://127.0.0.1:7897
+2025-08-21T09:13:45.54144038Z  INFO tokio-runtime-worker ThreadId(18) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:169: Using proxy type: auto for DNS resolution
+2025-08-21T09:14:05.288366804Z  INFO main ThreadId(01) dnsseeder: src/main.rs:189: Version 0.1.0
+2025-08-21T09:14:05.288386434Z  INFO main ThreadId(01) dnsseeder: src/main.rs:201: Created application directory: ./test_data/mainnet
+2025-08-21T09:14:05.288462411Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:312: 0 nodes loaded
+2025-08-21T09:14:05.288522982Z  INFO main ThreadId(01) dnsseeder: src/main.rs:264: Waiting for interrupt signal...
+2025-08-21T09:14:05.288539241Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:14:05.28854531Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:14:05.288549233Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::grpc: src/grpc.rs:35: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:14:05.288588073Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:14:05.288605915Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-1.kaspanet.org (with proxy support: false)
+2025-08-21T09:14:05.288641427Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::profiling: src/profiling.rs:75: Profiling server listening on 0.0.0.0:8080
+2025-08-21T09:14:05.289570359Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::manager: src/manager.rs:272: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:14:18.7252922Z  WARN tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:14:18.725299552Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-1.kaspanet.org via direct connection
+2025-08-21T09:14:18.725303124Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-1.kaspanet.org
+2025-08-21T09:14:18.725305979Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder mainnet-dnsseed-2.kaspanet.org (with proxy support: false)
+2025-08-21T09:14:41.724734973Z  WARN tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:144: Error connecting to DNS seeder mainnet-dnsseed-2.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:14:41.724744396Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 0 addresses from DNS seeder mainnet-dnsseed-2.kaspanet.org via direct connection
+2025-08-21T09:14:41.724749278Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 0 addresses from DNS seed server: mainnet-dnsseed-2.kaspanet.org
+2025-08-21T09:14:41.724753018Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder1.kaspad.net (with proxy support: false)
+2025-08-21T09:14:41.744371295Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 28 addresses from DNS seeder seeder1.kaspad.net via direct connection
+2025-08-21T09:14:41.74437928Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder1.kaspad.net
+2025-08-21T09:14:41.744382946Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder2.kaspad.net (with proxy support: false)
+2025-08-21T09:14:41.763159164Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 28 addresses from DNS seeder seeder2.kaspad.net via direct connection
+2025-08-21T09:14:41.76316657Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder2.kaspad.net
+2025-08-21T09:14:41.763170102Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder3.kaspad.net (with proxy support: false)
+2025-08-21T09:14:41.779593478Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 28 addresses from DNS seeder seeder3.kaspad.net via direct connection
+2025-08-21T09:14:41.779599116Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder3.kaspad.net
+2025-08-21T09:14:41.779602765Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder seeder4.kaspad.net (with proxy support: false)
+2025-08-21T09:14:41.796540212Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 28 addresses from DNS seeder seeder4.kaspad.net via direct connection
+2025-08-21T09:14:41.796545676Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 28 addresses from DNS seed server: seeder4.kaspad.net
+2025-08-21T09:14:41.79654847Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder kaspadns.kaspacalc.net (with proxy support: false)
+2025-08-21T09:14:41.810104313Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 17 addresses from DNS seeder kaspadns.kaspacalc.net via direct connection
+2025-08-21T09:14:41.810110402Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 17 addresses from DNS seed server: kaspadns.kaspacalc.net
+2025-08-21T09:14:41.810114223Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder n-mainnet.kaspa.ws (with proxy support: false)
+2025-08-21T09:14:41.825010822Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 17 addresses from DNS seeder n-mainnet.kaspa.ws via direct connection
+2025-08-21T09:14:41.825018368Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 17 addresses from DNS seed server: n-mainnet.kaspa.ws
+2025-08-21T09:14:41.825021317Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:71: Querying DNS seeder dnsseeder-kaspa-mainnet.x-con.at (with proxy support: false)
+2025-08-21T09:14:41.838922641Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:92: Retrieved 17 addresses from DNS seeder dnsseeder-kaspa-mainnet.x-con.at via direct connection
+2025-08-21T09:14:41.838930165Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:29: Discovered 17 addresses from DNS seed server: dnsseeder-kaspa-mainnet.x-con.at
+2025-08-21T09:14:41.83893463Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:38: Total discovered addresses from DNS: 163
+2025-08-21T09:14:41.838993935Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::crawler: src/crawler.rs:233: Added 93 addresses from DNS seed discovery
+2025-08-21T09:14:51.840172694Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 18.657µs
+2025-08-21T09:15:11.840685597Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 28.499µs
+2025-08-21T09:15:31.842383566Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 21.754µs
+2025-08-21T09:15:51.844031452Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 14.398µs
+2025-08-21T09:16:11.844589663Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 14.914µs
+2025-08-21T09:16:31.846290845Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 15.003µs
+2025-08-21T09:16:51.846667562Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 14.051µs
+2025-08-21T09:17:11.84811376Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 16.551µs
+2025-08-21T09:17:31.849233597Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 21.777µs
+2025-08-21T09:17:51.850246984Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 16.634µs
+2025-08-21T09:18:02.072151797Z  INFO main ThreadId(01) dnsseeder: src/main.rs:189: Version 0.1.0
+2025-08-21T09:18:02.072172764Z  INFO main ThreadId(01) dnsseeder: src/main.rs:201: Created application directory: ./test_data/mainnet
+2025-08-21T09:18:02.072257895Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:312: 0 nodes loaded
+2025-08-21T09:18:02.072312526Z  INFO main ThreadId(01) dnsseeder: src/main.rs:264: Waiting for interrupt signal...
+2025-08-21T09:18:02.072328582Z  INFO tokio-runtime-worker ThreadId(24) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:18:02.072336552Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:18:02.072339198Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:18:02.072343141Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::grpc: src/grpc.rs:35: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:18:02.072424066Z ERROR tokio-runtime-worker ThreadId(25) dnsseeder: src/main.rs:251: gRPC server error: gRPC server error: transport error
+2025-08-21T09:18:02.072427572Z ERROR tokio-runtime-worker ThreadId(24) dnsseeder: src/main.rs:243: DNS server error: Address already in use (os error 98)
+2025-08-21T09:18:02.072433692Z ERROR tokio-runtime-worker ThreadId(23) dnsseeder::profiling: src/profiling.rs:58: Profiling server error: Address already in use (os error 98)
+2025-08-21T09:18:02.073498092Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::manager: src/manager.rs:272: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:18:11.850600403Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 15.329µs
+2025-08-21T09:18:17.717182754Z  WARN tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:43: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known

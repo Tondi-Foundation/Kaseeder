@@ -1,12 +1,12 @@
+use anyhow::Result;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+use sysinfo::{CpuExt, System, SystemExt};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tracing::{error, info, warn};
-use anyhow::Result;
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-use sysinfo::{System, SystemExt, CpuExt};
 
 /// 性能分析服务器
 pub struct ProfilingServer {
@@ -136,10 +136,11 @@ impl ProfilingServer {
 
         // 简单的HTTP响应
         let response = Self::generate_profiling_response(&stats).await;
-        
-        if let Err(e) = tokio::io::AsyncWriteExt::write_all(&mut socket, response.as_bytes()).await {
+
+        if let Err(e) = tokio::io::AsyncWriteExt::write_all(&mut socket, response.as_bytes()).await
+        {
             error!("Failed to write response to {}: {}", addr, e);
-            
+
             // 更新错误计数
             let mut stats_guard = stats.lock().await;
             stats_guard.error_count += 1;
@@ -157,8 +158,9 @@ impl ProfilingServer {
     /// 生成性能分析响应
     async fn generate_profiling_response(stats: &Arc<Mutex<ProfilingStats>>) -> String {
         let stats_guard = stats.lock().await;
-        
-        let uptime = stats_guard.start_time
+
+        let uptime = stats_guard
+            .start_time
             .map(|start| {
                 let duration = start.elapsed();
                 format!("{}s", duration.as_secs())
@@ -245,19 +247,20 @@ impl ProfilingServer {
     /// 定期更新统计信息
     async fn update_stats_periodically(stats: Arc<Mutex<ProfilingStats>>) {
         let mut interval = tokio::time::interval(Duration::from_secs(5));
-        
+
         loop {
             interval.tick().await;
-            
+
             let mut stats_guard = stats.lock().await;
-            
+
             // 更新内存使用情况
             let mut system = System::new_all();
             stats_guard.memory_usage_bytes = system.used_memory();
-            
+
             // 更新CPU使用情况
             system.refresh_cpu();
-            let cpu_usage: f64 = system.cpus().iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() as f64;
+            let cpu_usage: f64 =
+                system.cpus().iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() as f64;
             stats_guard.cpu_usage_percent = cpu_usage / system.cpus().len() as f64;
         }
     }
@@ -320,8 +323,10 @@ mod tests {
     #[tokio::test]
     async fn test_custom_metrics() {
         let server = ProfilingServer::new(8081);
-        server.add_custom_metric("test_metric".to_string(), 42.0).await;
-        
+        server
+            .add_custom_metric("test_metric".to_string(), 42.0)
+            .await;
+
         let stats = server.get_stats().await;
         assert_eq!(stats.custom_metrics.get("test_metric"), Some(&42.0));
     }

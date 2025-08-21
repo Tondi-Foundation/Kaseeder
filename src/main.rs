@@ -1,3 +1,5 @@
+use anyhow::Result;
+use clap::Parser;
 use dnsseeder::config::Config;
 use dnsseeder::crawler::Crawler;
 use dnsseeder::dns::DnsServer;
@@ -6,10 +8,8 @@ use dnsseeder::kaspa_protocol::create_consensus_config;
 use dnsseeder::logging::init_logging;
 use dnsseeder::manager::AddressManager;
 use dnsseeder::profiling::ProfilingServer;
-use anyhow::Result;
-use clap::Parser;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tokio::signal;
 use tracing::{error, info};
 
@@ -103,7 +103,10 @@ async fn main() -> Result<()> {
         config.host = cli.host.clone();
     }
     if cli.nameserver != "ns1.kaspa.org" {
-        println!("  Overriding nameserver: {} -> {}", config.nameserver, cli.nameserver);
+        println!(
+            "  Overriding nameserver: {} -> {}",
+            config.nameserver, cli.nameserver
+        );
         config.nameserver = cli.nameserver.clone();
     }
     if cli.listen != "0.0.0.0:53" {
@@ -111,54 +114,90 @@ async fn main() -> Result<()> {
         config.listen = cli.listen.clone();
     }
     if cli.grpc_listen != "0.0.0.0:50051" {
-        println!("  Overriding grpc_listen: {} -> {}", config.grpc_listen, cli.grpc_listen);
+        println!(
+            "  Overriding grpc_listen: {} -> {}",
+            config.grpc_listen, cli.grpc_listen
+        );
         config.grpc_listen = cli.grpc_listen.clone();
     }
     if cli.app_dir != "./data" {
-        println!("  Overriding app_dir: {} -> {}", config.app_dir, cli.app_dir);
+        println!(
+            "  Overriding app_dir: {} -> {}",
+            config.app_dir, cli.app_dir
+        );
         config.app_dir = cli.app_dir.clone();
     }
     if cli.seeder.is_some() {
-        println!("  Overriding seeder: {:?} -> {:?}", config.seeder, cli.seeder);
+        println!(
+            "  Overriding seeder: {:?} -> {:?}",
+            config.seeder, cli.seeder
+        );
         config.seeder = cli.seeder.clone();
     }
     if cli.known_peers.is_some() {
-        println!("  Overriding known_peers: {:?} -> {:?}", config.known_peers, cli.known_peers);
+        println!(
+            "  Overriding known_peers: {:?} -> {:?}",
+            config.known_peers, cli.known_peers
+        );
         config.known_peers = cli.known_peers.clone();
     }
     if cli.threads != 8 {
-        println!("  Overriding threads: {} -> {}", config.threads, cli.threads);
+        println!(
+            "  Overriding threads: {} -> {}",
+            config.threads, cli.threads
+        );
         config.threads = cli.threads;
     }
     if cli.min_proto_ver != 0 {
-        println!("  Overriding min_proto_ver: {} -> {}", config.min_proto_ver, cli.min_proto_ver);
+        println!(
+            "  Overriding min_proto_ver: {} -> {}",
+            config.min_proto_ver, cli.min_proto_ver
+        );
         config.min_proto_ver = cli.min_proto_ver;
     }
     if cli.min_ua_ver.is_some() {
-        println!("  Overriding min_ua_ver: {:?} -> {:?}", config.min_ua_ver, cli.min_ua_ver);
+        println!(
+            "  Overriding min_ua_ver: {:?} -> {:?}",
+            config.min_ua_ver, cli.min_ua_ver
+        );
         config.min_ua_ver = cli.min_ua_ver.clone();
     }
     if cli.testnet {
-        println!("  Overriding testnet: {} -> {}", config.testnet, cli.testnet);
+        println!(
+            "  Overriding testnet: {} -> {}",
+            config.testnet, cli.testnet
+        );
         config.testnet = cli.testnet;
     }
     if cli.net_suffix != 0 {
-        println!("  Overriding net_suffix: {} -> {}", config.net_suffix, cli.net_suffix);
+        println!(
+            "  Overriding net_suffix: {} -> {}",
+            config.net_suffix, cli.net_suffix
+        );
         config.net_suffix = cli.net_suffix;
     }
     if cli.log_level != "info" {
-        println!("  Overriding log_level: {} -> {}", config.log_level, cli.log_level);
+        println!(
+            "  Overriding log_level: {} -> {}",
+            config.log_level, cli.log_level
+        );
         config.log_level = cli.log_level.clone();
     }
     if cli.nologfiles {
-        println!("  Overriding nologfiles: {} -> {}", config.nologfiles, cli.nologfiles);
+        println!(
+            "  Overriding nologfiles: {} -> {}",
+            config.nologfiles, cli.nologfiles
+        );
         config.nologfiles = cli.nologfiles;
     }
     if cli.profile.is_some() {
-        println!("  Overriding profile: {:?} -> {:?}", config.profile, cli.profile);
+        println!(
+            "  Overriding profile: {:?} -> {:?}",
+            config.profile, cli.profile
+        );
         config.profile = cli.profile.clone();
     }
-    
+
     println!("Final configuration:");
     println!("  Host: {}", config.host);
     println!("  Nameserver: {}", config.nameserver);
@@ -183,7 +222,14 @@ async fn main() -> Result<()> {
     config.display();
 
     // 初始化日志
-    init_logging(&config.log_level, if config.nologfiles { None } else { Some("dnsseeder.log") })?;
+    init_logging(
+        &config.log_level,
+        if config.nologfiles {
+            None
+        } else {
+            Some("dnsseeder.log")
+        },
+    )?;
 
     // 显示版本信息
     info!("Version {}", env!("CARGO_PKG_VERSION"));
@@ -217,7 +263,7 @@ async fn main() -> Result<()> {
     let profiling_server = if let Some(profile_port) = &config.profile {
         let port = profile_port.parse::<u16>().unwrap_or(8080);
         let server = ProfilingServer::new(port);
-        
+
         // 启动性能分析服务器
         let server_clone = server.clone();
         tokio::spawn(async move {
@@ -225,7 +271,7 @@ async fn main() -> Result<()> {
                 error!("Failed to start profiling server: {}", e);
             }
         });
-        
+
         Some(server)
     } else {
         None

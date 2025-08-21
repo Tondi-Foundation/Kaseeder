@@ -6,14 +6,14 @@ use tracing_subscriber::{
     fmt::{self, time::UtcTime},
     layer::SubscriberExt,
     util::SubscriberInitExt,
-    EnvFilter, Layer,
+    EnvFilter,
 };
 
 /// 初始化完整的日志系统
 pub fn init_logging(log_level: &str, log_file: Option<&str>) -> Result<()> {
     // 设置环境过滤器
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(log_level));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level));
 
     // 控制台输出层
     let console_layer = fmt::layer()
@@ -51,18 +51,13 @@ pub fn init_logging(log_level: &str, log_file: Option<&str>) -> Result<()> {
             .with_writer(non_blocking_log_appender);
 
         // 初始化带文件输出的订阅者
-        registry
-            .with(console_layer)
-            .with(file_layer)
-            .init();
+        registry.with(console_layer).with(file_layer).init();
 
         // 防止guard被drop
         std::mem::forget(_log_guard);
     } else {
         // 只有控制台输出
-        registry
-            .with(console_layer)
-            .init();
+        registry.with(console_layer).init();
     }
 
     Ok(())
@@ -76,10 +71,10 @@ pub fn log_error(error: &anyhow::Error, context: &str) {
         context,
         error
     );
-    
+
     // 记录到标准错误日志
     tracing::error!("{}: {}", context, error);
-    
+
     // 如果有错误日志文件，也记录到文件
     if let Ok(mut error_file) = std::fs::OpenOptions::new()
         .create(true)
@@ -99,10 +94,10 @@ pub fn log_warning(warning: &str, context: &str) {
         context,
         warning
     );
-    
+
     // 记录到标准警告日志
     tracing::warn!("{}: {}", context, warning);
-    
+
     // 如果有错误日志文件，也记录到文件
     if let Ok(mut error_file) = std::fs::OpenOptions::new()
         .create(true)

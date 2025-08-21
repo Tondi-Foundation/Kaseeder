@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::Mutex;
-use tracing::{info, warn, error};
+use tracing::{error, info};
 
 /// 系统监控器
 pub struct SystemMonitor {
@@ -51,17 +51,20 @@ impl SystemMonitor {
     /// 启动监控
     pub async fn start_monitoring(&self) -> Result<()> {
         info!("Starting system monitoring");
-        
+
         let health_status = self.health_status.clone();
         let performance_metrics = self.performance_metrics.clone();
-        
+
         // 启动定期健康检查
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(30));
             loop {
                 interval.tick().await;
-                
-                if let Err(e) = Self::perform_health_check(health_status.clone(), performance_metrics.clone()).await {
+
+                if let Err(e) =
+                    Self::perform_health_check(health_status.clone(), performance_metrics.clone())
+                        .await
+                {
                     error!("Health check failed: {}", e);
                 }
             }
@@ -73,8 +76,9 @@ impl SystemMonitor {
             let mut interval = tokio::time::interval(Duration::from_secs(10));
             loop {
                 interval.tick().await;
-                
-                if let Err(e) = Self::collect_performance_metrics(performance_metrics.clone()).await {
+
+                if let Err(e) = Self::collect_performance_metrics(performance_metrics.clone()).await
+                {
                     error!("Performance metrics collection failed: {}", e);
                 }
             }
@@ -90,36 +94,37 @@ impl SystemMonitor {
     ) -> Result<()> {
         let mut health = health_status.lock().await;
         let metrics = performance_metrics.lock().await;
-        
+
         // 清除旧的问题
         health.clear_issues();
-        
+
         // 检查CPU使用率
         if metrics.cpu_usage > 90.0 {
             health.add_error("High CPU usage detected".to_string());
         } else if metrics.cpu_usage > 70.0 {
             health.add_warning("Elevated CPU usage detected".to_string());
         }
-        
+
         // 检查内存使用
-        if metrics.memory_usage > 1024 * 1024 * 1024 { // 1GB
+        if metrics.memory_usage > 1024 * 1024 * 1024 {
+            // 1GB
             health.add_warning("High memory usage detected".to_string());
         }
-        
+
         // 检查响应时间
         if metrics.avg_response_time_ms > 5000.0 {
             health.add_error("High response time detected".to_string());
         } else if metrics.avg_response_time_ms > 2000.0 {
             health.add_warning("Elevated response time detected".to_string());
         }
-        
+
         info!(
             "Health check completed: healthy={}, errors={}, warnings={}",
             health.is_healthy,
             health.errors.len(),
             health.warnings.len()
         );
-        
+
         Ok(())
     }
 
@@ -128,13 +133,13 @@ impl SystemMonitor {
         performance_metrics: Arc<Mutex<PerformanceMetrics>>,
     ) -> Result<()> {
         let mut metrics = performance_metrics.lock().await;
-        
+
         // 简化的性能指标收集（实际应该使用系统API）
         metrics.cpu_usage = Self::get_cpu_usage().await?;
         metrics.memory_usage = Self::get_memory_usage().await?;
         metrics.network_connections = Self::get_network_connections().await?;
         metrics.last_updated = Some(SystemTime::now());
-        
+
         Ok(())
     }
 
@@ -159,15 +164,16 @@ impl SystemMonitor {
     /// 更新DNS查询统计
     pub async fn record_dns_query(&self, response_time: Duration) {
         let mut metrics = self.performance_metrics.lock().await;
-        
+
         // 简化的移动平均计算
         let response_time_ms = response_time.as_millis() as f64;
         if metrics.avg_response_time_ms == 0.0 {
             metrics.avg_response_time_ms = response_time_ms;
         } else {
-            metrics.avg_response_time_ms = (metrics.avg_response_time_ms * 0.9) + (response_time_ms * 0.1);
+            metrics.avg_response_time_ms =
+                (metrics.avg_response_time_ms * 0.9) + (response_time_ms * 0.1);
         }
-        
+
         // 更新QPS（简化实现）
         metrics.dns_queries_per_second = metrics.dns_queries_per_second * 0.9 + 0.1;
     }
@@ -175,14 +181,15 @@ impl SystemMonitor {
     /// 更新gRPC请求统计
     pub async fn record_grpc_request(&self, response_time: Duration) {
         let mut metrics = self.performance_metrics.lock().await;
-        
+
         let response_time_ms = response_time.as_millis() as f64;
         if metrics.avg_response_time_ms == 0.0 {
             metrics.avg_response_time_ms = response_time_ms;
         } else {
-            metrics.avg_response_time_ms = (metrics.avg_response_time_ms * 0.9) + (response_time_ms * 0.1);
+            metrics.avg_response_time_ms =
+                (metrics.avg_response_time_ms * 0.9) + (response_time_ms * 0.1);
         }
-        
+
         metrics.grpc_requests_per_second = metrics.grpc_requests_per_second * 0.9 + 0.1;
     }
 
@@ -191,11 +198,11 @@ impl SystemMonitor {
         let uptime = self.start_time.elapsed().unwrap_or_default();
         let health = self.health_status.lock().await.clone();
         let performance = self.performance_metrics.lock().await.clone();
-        let logging_stats = { 
+        let logging_stats = {
             let guard = self.logging_stats.lock().await;
             guard.clone()
         };
-        
+
         SystemStatusReport {
             uptime_seconds: uptime.as_secs(),
             health,
@@ -239,7 +246,7 @@ mod tests {
     async fn test_dns_query_recording() {
         let monitor = SystemMonitor::new();
         monitor.record_dns_query(Duration::from_millis(100)).await;
-        
+
         let metrics = monitor.performance_metrics.lock().await;
         assert!(metrics.avg_response_time_ms > 0.0);
     }

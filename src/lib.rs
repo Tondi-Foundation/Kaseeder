@@ -14,5 +14,5 @@ pub mod types;
 pub mod version;
 
 pub use config::Config;
-pub use types::*;
 pub use kaspa_protocol::*;
+pub use types::*;

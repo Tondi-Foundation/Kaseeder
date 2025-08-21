@@ -16,7 +16,8 @@ impl VersionChecker {
                 if ordering == std::cmp::Ordering::Greater {
                     return Err(anyhow::anyhow!(
                         "User agent version {} is below minimum required version {}",
-                        peer_version, min_version
+                        peer_version,
+                        min_version
                     ));
                 }
                 Ok(())
@@ -46,7 +47,7 @@ impl VersionChecker {
 
         // 比较版本号
         let max_len = std::cmp::max(v1_parts.len(), v2_parts.len());
-        
+
         for i in 0..max_len {
             let v1_part = v1_parts.get(i).copied().unwrap_or(0);
             let v2_part = v2_parts.get(i).copied().unwrap_or(0);
@@ -71,7 +72,8 @@ impl VersionChecker {
         if peer_version < min_version as u32 {
             return Err(anyhow::anyhow!(
                 "Protocol version {} is below minimum required version {}",
-                peer_version, min_version
+                peer_version,
+                min_version
             ));
         }
 

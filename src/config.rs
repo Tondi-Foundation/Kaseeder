@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use anyhow::{Result, Context};
 use tracing::{info, warn};
 
 /// 网络参数枚举
@@ -39,9 +39,6 @@ pub struct ConfigFile {
     pub nologfiles: Option<bool>,
     pub error_log_file: Option<String>,
     pub profile: Option<String>,
-    pub proxy_enabled: Option<bool>,
-    pub proxy_url: Option<String>,
-    pub proxy_timeout: Option<u64>,
 }
 
 /// 应用程序配置
@@ -79,59 +76,53 @@ pub struct Config {
     pub error_log_file: Option<String>,
     /// 性能分析端口
     pub profile: Option<String>,
-    /// 是否启用代理
-    pub proxy_enabled: bool,
-    /// 代理URL
-    pub proxy_url: Option<String>,
-    /// 代理超时时间（秒）
-    pub proxy_timeout: u64,
 }
 
 impl Config {
     /// 创建新的配置实例
-            pub fn new() -> Self {
-            Self {
-                host: "seed.kaspa.org".to_string(),
-                nameserver: "ns1.kaspa.org".to_string(),
-                listen: "0.0.0.0:53".to_string(),
-                grpc_listen: "0.0.0.0:50051".to_string(),
-                app_dir: "./data".to_string(),
-                seeder: None,
-                known_peers: None,
-                threads: 8,
-                min_proto_ver: 0,
-                min_ua_ver: None,
-                testnet: false,
-                net_suffix: 0,
-                log_level: "info".to_string(),
-                nologfiles: false,
-                error_log_file: Some("logs/dnsseeder_error.log".to_string()),
-                profile: None,
-                proxy_enabled: false,
-                proxy_url: None,
-                proxy_timeout: 5,
-            }
+    pub fn new() -> Self {
+        Self {
+            host: "seed.kaspa.org".to_string(),
+            nameserver: "ns1.kaspa.org".to_string(),
+            listen: "0.0.0.0:53".to_string(),
+            grpc_listen: "0.0.0.0:50051".to_string(),
+            app_dir: "./data".to_string(),
+            seeder: None,
+            known_peers: None,
+            threads: 8,
+            min_proto_ver: 0,
+            min_ua_ver: None,
+            testnet: false,
+            net_suffix: 0,
+            log_level: "info".to_string(),
+            nologfiles: false,
+            error_log_file: Some("logs/dnsseeder_error.log".to_string()),
+            profile: None,
         }
+    }
 
     /// 从配置文件加载配置
     pub fn load_from_file(config_path: &str) -> Result<Self> {
         let config_path = Path::new(config_path);
-        
+
         if !config_path.exists() {
-            return Err(anyhow::anyhow!("Configuration file not found: {}", config_path.display()));
+            return Err(anyhow::anyhow!(
+                "Configuration file not found: {}",
+                config_path.display()
+            ));
         }
 
         info!("Loading configuration from: {}", config_path.display());
-        
+
         let config_content = fs::read_to_string(config_path)
             .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
-        
+
         let config_file: ConfigFile = toml::from_str(&config_content)
             .with_context(|| "Failed to parse config file as TOML")?;
-        
+
         // 从配置文件创建配置实例
         let mut config = Self::new();
-        
+
         // 应用配置文件中的值（如果存在）
         if let Some(host) = config_file.host {
             config.host = host;
@@ -181,18 +172,7 @@ impl Config {
         if let Some(profile) = config_file.profile {
             config.profile = Some(profile);
         }
-        
-        // 加载代理配置
-        if let Some(proxy_enabled) = config_file.proxy_enabled {
-            config.proxy_enabled = proxy_enabled;
-        }
-        if let Some(proxy_url) = config_file.proxy_url {
-            config.proxy_url = Some(proxy_url);
-        }
-        if let Some(proxy_timeout) = config_file.proxy_timeout {
-            config.proxy_timeout = proxy_timeout;
-        }
-        
+
         info!("Configuration loaded successfully from file");
         Ok(config)
     }
@@ -205,7 +185,7 @@ impl Config {
             "~/.dnsseeder/dnsseeder.conf",
             "/etc/dnsseeder/dnsseeder.conf",
         ];
-        
+
         for path in &default_paths {
             let expanded_path = if path.starts_with("~/") {
                 let home = dirs::home_dir()
@@ -214,12 +194,12 @@ impl Config {
             } else {
                 path.to_string().into()
             };
-            
+
             if expanded_path.exists() {
                 return Self::load_from_file(expanded_path.to_str().unwrap());
             }
         }
-        
+
         warn!("No configuration file found, using default configuration");
         Ok(Self::new())
     }
@@ -227,7 +207,7 @@ impl Config {
     /// 保存配置到文件
     pub fn save_to_file(&self, config_path: &str) -> Result<()> {
         let config_path = Path::new(config_path);
-        
+
         // 确保父目录存在
         if let Some(parent) = config_path.parent() {
             if !parent.exists() {
@@ -235,7 +215,7 @@ impl Config {
                     .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
             }
         }
-        
+
         let config_file = ConfigFile {
             host: Some(self.host.clone()),
             nameserver: Some(self.nameserver.clone()),
@@ -253,17 +233,14 @@ impl Config {
             nologfiles: Some(self.nologfiles),
             error_log_file: self.error_log_file.clone(),
             profile: self.profile.clone(),
-            proxy_enabled: Some(self.proxy_enabled),
-            proxy_url: self.proxy_url.clone(),
-            proxy_timeout: Some(self.proxy_timeout),
         };
-        
+
         let toml_content = toml::to_string_pretty(&config_file)
             .with_context(|| "Failed to serialize config to TOML")?;
-        
+
         fs::write(config_path, toml_content)
             .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
-        
+
         info!("Configuration saved to: {}", config_path.display());
         Ok(())
     }
@@ -283,7 +260,7 @@ impl Config {
             } else {
                 16110 // 其他测试网的默认端口
             };
-            
+
             NetworkParams::Testnet {
                 suffix: self.net_suffix,
                 default_port,
@@ -316,7 +293,7 @@ impl Config {
                 return Err(anyhow::anyhow!("Invalid listen port: {}", port_str));
             }
         }
-        
+
         if let Some(port_str) = self.grpc_listen.split(':').last() {
             if let Ok(port) = port_str.parse::<u16>() {
                 if port == 0 {
@@ -326,7 +303,7 @@ impl Config {
                 return Err(anyhow::anyhow!("Invalid gRPC listen port: {}", port_str));
             }
         }
-        
+
         // 验证线程数
         if self.threads == 0 {
             return Err(anyhow::anyhow!("Thread count must be greater than 0"));
@@ -334,12 +311,15 @@ impl Config {
         if self.threads > 64 {
             return Err(anyhow::anyhow!("Thread count too high: {}", self.threads));
         }
-        
+
         // 验证网络后缀
         if self.testnet && self.net_suffix > 99 {
-            return Err(anyhow::anyhow!("Network suffix too high: {}", self.net_suffix));
+            return Err(anyhow::anyhow!(
+                "Network suffix too high: {}",
+                self.net_suffix
+            ));
         }
-        
+
         Ok(())
     }
 
@@ -364,11 +344,6 @@ impl Config {
         if let Some(ref profile) = self.profile {
             info!("  Profile Port: {}", profile);
         }
-        info!("  Proxy Enabled: {}", self.proxy_enabled);
-        if let Some(ref proxy_url) = self.proxy_url {
-            info!("  Proxy URL: {}", proxy_url);
-        }
-        info!("  Proxy Timeout: {}s", self.proxy_timeout);
     }
 }
 
@@ -381,8 +356,8 @@ impl Default for Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
     use std::fs;
+    use tempfile::tempdir;
 
     #[test]
     fn test_config_creation() {
@@ -397,7 +372,7 @@ mod tests {
         let config = Config::new();
         let params = config.get_network_params();
         assert_eq!(params.default_port(), 16111);
-        
+
         let mut testnet_config = Config::new();
         testnet_config.testnet = true;
         testnet_config.net_suffix = 10;
@@ -409,7 +384,7 @@ mod tests {
     fn test_network_name() {
         let config = Config::new();
         assert_eq!(config.get_network_name(), "mainnet");
-        
+
         let mut testnet_config = Config::new();
         testnet_config.testnet = true;
         testnet_config.net_suffix = 11;
@@ -420,7 +395,7 @@ mod tests {
     fn test_config_validation() {
         let config = Config::new();
         assert!(config.validate().is_ok());
-        
+
         let mut invalid_config = Config::new();
         invalid_config.threads = 0;
         assert!(invalid_config.validate().is_err());
@@ -430,24 +405,24 @@ mod tests {
     fn test_config_file_operations() -> Result<()> {
         let temp_dir = tempdir()?;
         let config_path = temp_dir.path().join("test.conf");
-        
+
         // 创建默认配置
         Config::create_default_config(config_path.to_str().unwrap())?;
         assert!(config_path.exists());
-        
+
         // 加载配置
         let loaded_config = Config::load_from_file(config_path.to_str().unwrap())?;
         assert_eq!(loaded_config.host, "seed.kaspa.org");
-        
+
         // 保存配置
         let mut modified_config = loaded_config;
         modified_config.host = "test.kaspa.org".to_string();
         modified_config.save_to_file(config_path.to_str().unwrap())?;
-        
+
         // 验证修改已保存
         let reloaded_config = Config::load_from_file(config_path.to_str().unwrap())?;
         assert_eq!(reloaded_config.host, "test.kaspa.org");
-        
+
         Ok(())
     }
 }

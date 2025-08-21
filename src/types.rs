@@ -1,4 +1,4 @@
-use kaspa_utils::networking::{NetAddress as KaspaNetAddress, IpAddress as KaspaIpAddress};
+use kaspa_utils::networking::{IpAddress as KaspaIpAddress, NetAddress as KaspaNetAddress};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -30,8 +30,6 @@ impl NetAddress {
         }
     }
 }
-
-
 
 /// 网络地址扩展特性
 pub trait NetAddressExt {
