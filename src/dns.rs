@@ -11,7 +11,7 @@ use trust_dns_proto::op::{Message, MessageType, OpCode, ResponseCode};
 use trust_dns_proto::rr::{Name, RData, Record, RecordType};
 use trust_dns_proto::serialize::binary::{BinEncodable, BinEncoder};
 
-/// DNS 服务器结构
+/// DNS server structure
 pub struct DnsServer {
     hostname: String,
     nameserver: String,
@@ -20,7 +20,7 @@ pub struct DnsServer {
 }
 
 impl DnsServer {
-    /// 创建新的 DNS 服务器
+    /// Create a new DNS server
     pub fn new(
         hostname: String,
         nameserver: String,
@@ -35,7 +35,7 @@ impl DnsServer {
         }
     }
 
-    /// 启动 DNS 服务器
+    /// Start the DNS server
     pub async fn start(&self) -> Result<()> {
         info!("Starting DNS server on {}", self.listen);
 
@@ -49,7 +49,7 @@ impl DnsServer {
                 Ok((len, src_addr)) => {
                     let request_data = &buffer[..len];
 
-                    // 处理 DNS 请求
+                    // Handle DNS request
                     if let Ok(response_data) =
                         self.handle_dns_request(request_data, &src_addr).await
                     {
@@ -60,7 +60,7 @@ impl DnsServer {
                 }
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::WouldBlock {
-                        // 超时，继续循环
+                        // Timeout, continue loop
                         continue;
                     }
                     warn!("DNS server error: {}", e);
@@ -69,7 +69,7 @@ impl DnsServer {
         }
     }
 
-    /// 处理 DNS 请求
+    /// Handle DNS request
     async fn handle_dns_request(
         &self,
         request_data: &[u8],
@@ -98,12 +98,12 @@ impl DnsServer {
             src_addr, domain_name, query_type
         );
 
-        // 检查域名是否属于我们
+        // Check if domain belongs to us
         if !self.is_our_domain(domain_name) {
             return Err(anyhow::anyhow!("Domain not served by this server"));
         }
 
-        // 创建响应
+        // Create response
         let mut response = Message::new();
         response.set_id(request.header().id());
         response.set_message_type(MessageType::Response);
@@ -113,10 +113,10 @@ impl DnsServer {
         response.set_recursion_desired(false);
         response.set_recursion_available(false);
 
-        // 添加查询
+        // Add query
         response.add_query(query.clone());
 
-        // 根据查询类型处理
+        // Handle based on query type
         match query_type {
             RecordType::A => {
                 self.handle_a_query(&mut response, domain_name).await?;
@@ -128,12 +128,12 @@ impl DnsServer {
                 self.handle_ns_query(&mut response, domain_name).await?;
             }
             _ => {
-                // 不支持的查询类型
+                // Unsupported query type
                 response.set_response_code(ResponseCode::ServFail);
             }
         }
 
-        // 序列化响应
+        // Serialize response
         let mut buffer = Vec::new();
         let mut encoder = BinEncoder::new(&mut buffer);
         response.emit(&mut encoder)?;
@@ -141,14 +141,14 @@ impl DnsServer {
         Ok(buffer)
     }
 
-    /// 处理 A 记录查询
+    /// Handle A record query
     async fn handle_a_query(&self, response: &mut Message, domain_name: &Name) -> Result<()> {
         let addresses = self
             .address_manager
             .get_good_addresses(
-                1,    // A 记录类型
-                true, // 包含所有子网络
-                None, // 子网络 ID
+                1,    // A record type
+                true, // Include all subnetworks
+                None, // Subnetwork ID
             )
             .await;
 
@@ -172,14 +172,14 @@ impl DnsServer {
         Ok(())
     }
 
-    /// 处理 AAAA 记录查询
+    /// Handle AAAA record query
     async fn handle_aaaa_query(&self, response: &mut Message, domain_name: &Name) -> Result<()> {
         let addresses = self
             .address_manager
             .get_good_addresses(
-                28,   // AAAA 记录类型
-                true, // 包含所有子网络
-                None, // 子网络 ID
+                28,   // AAAA record type
+                true, // Include all subnetworks
+                None, // Subnetwork ID
             )
             .await;
 
@@ -200,7 +200,7 @@ impl DnsServer {
             }
         }
 
-        // 如果没有 IPv6 地址，添加一个占位符（参考 Go 版本的实现）
+        // If no IPv6 addresses, add a placeholder (refer to Go version implementation)
         if addresses.is_empty() {
             let placeholder_ip = Ipv6Addr::new(0x100, 0, 0, 0, 0, 0, 0, 0);
             let record = Record::from_rdata(
@@ -214,7 +214,7 @@ impl DnsServer {
         Ok(())
     }
 
-    /// 处理 NS 记录查询
+    /// Handle NS record query
     async fn handle_ns_query(&self, response: &mut Message, domain_name: &Name) -> Result<()> {
         let nameserver_name = Name::from_str(&self.nameserver)?;
         let record = Record::from_rdata(
@@ -227,10 +227,10 @@ impl DnsServer {
         Ok(())
     }
 
-    /// 检查域名是否属于我们
+    /// Check if domain belongs to us
     fn is_our_domain(&self, domain_name: &Name) -> bool {
         let hostname = Name::from_str(&self.hostname).unwrap_or_default();
-        // 检查域名是否以我们的主机名结尾
+        // Check if domain ends with our hostname
         domain_name
             .iter()
             .rev()
@@ -239,7 +239,7 @@ impl DnsServer {
     }
 }
 
-/// 地址管理器 trait，用于抽象地址管理
+/// Address manager trait, used for abstracting address management
 #[async_trait]
 pub trait AddressManager: Send + Sync {
     async fn get_good_addresses(
@@ -250,7 +250,7 @@ pub trait AddressManager: Send + Sync {
     ) -> Vec<NetAddress>;
 }
 
-/// 为我们的地址管理器实现 trait
+/// Implement trait for our address manager
 #[async_trait]
 impl AddressManager for crate::manager::AddressManager {
     async fn get_good_addresses(
@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn test_dns_record_creation() {
-        // 创建一个模拟的地址管理器
+        // Create a mock address manager
         let address_manager = Arc::new(MockAddressManager);
         let dns_server = DnsServer::new(
             "seed.example.com".to_string(),
@@ -279,13 +279,13 @@ mod tests {
             address_manager.clone(),
         );
 
-        // 测试 DNS 服务器创建成功
+        // Test DNS server creation success
         assert_eq!(dns_server.hostname, "seed.example.com");
         assert_eq!(dns_server.nameserver, "ns.example.com");
         assert_eq!(dns_server.listen, "127.0.0.1:5354");
     }
 
-    // 模拟地址管理器用于测试
+    // Mock address manager for testing
     struct MockAddressManager;
 
     #[async_trait]

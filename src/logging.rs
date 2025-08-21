@@ -15,7 +15,7 @@ pub fn init_logging(log_level: &str, log_file: Option<&str>) -> Result<()> {
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level));
 
-    // 控制台输出层
+    // Console output layer
     let console_layer = fmt::layer()
         .with_timer(UtcTime::rfc_3339())
         .with_target(true)
@@ -25,21 +25,21 @@ pub fn init_logging(log_level: &str, log_file: Option<&str>) -> Result<()> {
         .with_line_number(true)
         .with_ansi(true);
 
-    // 创建订阅者注册器
+    // Create subscriber registry
     let registry = tracing_subscriber::registry().with(env_filter);
 
-    // 如果指定了日志文件，添加文件输出层
+    // If log file is specified, add file output layer
     if let Some(log_file_path) = log_file {
-        // 确保日志目录存在
+        // Ensure log directory exists
         if let Some(parent_dir) = Path::new(log_file_path).parent() {
             std::fs::create_dir_all(parent_dir)?;
         }
 
-        // 创建普通日志文件滚动写入器
+        // Create regular log file rolling writer
         let log_appender = rolling::daily("logs", "dnsseeder");
         let (non_blocking_log_appender, _log_guard) = non_blocking(log_appender);
 
-        // 普通日志文件输出层
+        // Regular log file output layer
         let file_layer = fmt::layer()
             .with_timer(UtcTime::rfc_3339())
             .with_target(true)
@@ -47,23 +47,23 @@ pub fn init_logging(log_level: &str, log_file: Option<&str>) -> Result<()> {
             .with_thread_names(true)
             .with_file(true)
             .with_line_number(true)
-            .with_ansi(false) // 文件中不使用ANSI颜色
+            .with_ansi(false) // Do not use ANSI colors in files
             .with_writer(non_blocking_log_appender);
 
-        // 初始化带文件输出的订阅者
+        // Initialize subscriber with file output
         registry.with(console_layer).with(file_layer).init();
 
-        // 防止guard被drop
+        // Prevent guard from being dropped
         std::mem::forget(_log_guard);
     } else {
-        // 只有控制台输出
+        // Console output only
         registry.with(console_layer).init();
     }
 
     Ok(())
 }
 
-/// 记录错误到专门的错误日志文件
+/// Log errors to dedicated error log file
 pub fn log_error(error: &anyhow::Error, context: &str) {
     let error_details = format!(
         "ERROR [{}] {}: {}",
@@ -72,10 +72,10 @@ pub fn log_error(error: &anyhow::Error, context: &str) {
         error
     );
 
-    // 记录到标准错误日志
+    // Log to standard error log
     tracing::error!("{}: {}", context, error);
 
-    // 如果有错误日志文件，也记录到文件
+    // If error log file exists, also log to file
     if let Ok(mut error_file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -86,7 +86,7 @@ pub fn log_error(error: &anyhow::Error, context: &str) {
     }
 }
 
-/// 记录警告到专门的错误日志文件
+/// Log warnings to dedicated error log file
 pub fn log_warning(warning: &str, context: &str) {
     let warning_details = format!(
         "WARNING [{}] {}: {}",
@@ -95,10 +95,10 @@ pub fn log_warning(warning: &str, context: &str) {
         warning
     );
 
-    // 记录到标准警告日志
+    // Log to standard warning log
     tracing::warn!("{}: {}", context, warning);
 
-    // 如果有错误日志文件，也记录到文件
+    // If error log file exists, also log to file
     if let Ok(mut error_file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -109,7 +109,7 @@ pub fn log_warning(warning: &str, context: &str) {
     }
 }
 
-/// 性能监控宏
+/// Performance monitoring macro
 #[macro_export]
 macro_rules! monitor_performance {
     ($name:expr, $block:block) => {{
@@ -126,7 +126,7 @@ macro_rules! monitor_performance {
     }};
 }
 
-/// 健康检查状态
+/// Health check status
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HealthStatus {
     pub is_healthy: bool,
@@ -166,7 +166,7 @@ impl HealthStatus {
     }
 }
 
-/// 日志统计信息
+/// Logging statistics
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LoggingStats {
     pub total_logs: u64,
@@ -205,27 +205,27 @@ mod tests {
     #[test]
     #[ignore]
     fn test_logging_initialization() {
-        // 这个测试被忽略，因为全局订阅者可能已经被设置
-        // 在集成测试环境中运行
+        // This test is ignored because global subscriber may already be set
+        // Run in integration test environment
         assert!(true);
     }
 
     #[test]
     #[ignore]
     fn test_logging_with_file() {
-        // 这个测试被忽略，因为全局订阅者可能已经被设置
-        // 在集成测试环境中运行
+        // This test is ignored because global subscriber may already be set
+        // Run in integration test environment
         assert!(true);
     }
 
     #[test]
     fn test_set_log_level() {
-        // 使用 tracing 的 set_global_default 来设置日志级别
+        // Use tracing's set_global_default to set log level
         let subscriber = tracing_subscriber::FmtSubscriber::builder()
             .with_max_level(Level::DEBUG)
             .finish();
         let _ = tracing::subscriber::set_global_default(subscriber);
-        // 验证日志级别设置成功
+        // Verify log level setting success
         assert!(true);
     }
 }
