@@ -2,7 +2,6 @@ use crate::types::{NetAddress, VersionMessage};
 use anyhow::Result;
 // 注意：core模块是私有的，我们只能使用公共API
 use kaspa_consensus_core::config::Config as ConsensusConfig;
-use kaspa_consensus_core::params::Params;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpStream;
@@ -203,8 +202,7 @@ impl Drop for KaspaConnection {
 /// 创建Kaspa共识配置
 pub fn create_consensus_config(testnet: bool, net_suffix: u16) -> Arc<ConsensusConfig> {
     // 使用默认参数创建配置
-    let params = Params::default();
-    let config = ConsensusConfig::new(params);
+    let config = ConsensusConfig::default();
     
     Arc::new(config)
 }
@@ -226,8 +224,7 @@ mod tests {
 
     #[test]
     fn test_protocol_handler_creation() {
-        let params = Params::default();
-        let config = Arc::new(Config::new(params));
+        let config = Arc::new(Config::default());
         let handler = KaspaProtocolHandler::new(config);
         // 验证处理器创建成功
         assert!(true);
