@@ -14,7 +14,7 @@ A high-performance DNS seeder for the Kaspa network, written in Rust. Kaseeder c
 
 ## 📋 System Requirements
 
-- **Rust**: 1.75+ (latest stable recommended)
+- **Rust**: 1.89+ (latest stable recommended)
 - **OS**: Linux, macOS, Windows
 - **Memory**: 512MB RAM minimum, 1GB+ recommended
 - **Network**: Internet connection for P2P communication
