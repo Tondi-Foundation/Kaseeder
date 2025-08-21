@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package dnsseeder;
+
+// DNS 种子服务定义
+service DnsSeederService {
+    // 获取地址列表
+    rpc GetAddresses(GetAddressesRequest) returns (GetAddressesResponse);
+    
+    // 获取统计信息
+    rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+    
+    // 获取地址统计
+    rpc GetAddressStats(GetAddressStatsRequest) returns (GetAddressStatsResponse);
+    
+    // 健康检查
+    rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// 请求消息
+message GetAddressesRequest {
+    uint32 limit = 1;           // 返回地址数量限制
+    bool include_ipv4 = 2;      // 是否包含IPv4地址
+    bool include_ipv6 = 3;      // 是否包含IPv6地址
+    string subnetwork_id = 4;   // 可选的子网络ID过滤
+}
+
+message GetStatsRequest {}
+
+message GetAddressStatsRequest {}
+
+message HealthCheckRequest {}
+
+// 响应消息
+message GetAddressesResponse {
+    repeated NetAddress addresses = 1;
+    uint64 total_count = 2;
+}
+
+message GetStatsResponse {
+    uint64 total_nodes = 1;
+    uint64 active_nodes = 2;
+    uint64 failed_connections = 3;
+    uint64 successful_connections = 4;
+    uint64 last_update = 5;
+    string uptime = 6;
+}
+
+message GetAddressStatsResponse {
+    uint64 total_addresses = 1;
+    uint64 ipv4_addresses = 2;
+    uint64 ipv6_addresses = 3;
+    uint64 good_addresses = 4;
+    uint64 stale_addresses = 5;
+    uint64 timestamp = 6;
+}
+
+message HealthCheckResponse {
+    enum Status {
+        SERVING = 0;
+        NOT_SERVING = 1;
+        SERVICE_UNKNOWN = 2;
+    }
+    Status status = 1;
+    string message = 2;
+}
+
+// 数据类型
+message NetAddress {
+    string ip = 1;
+    uint32 port = 2;
+    uint64 last_seen = 3;
+    string user_agent = 4;
+    uint32 protocol_version = 5;
+}

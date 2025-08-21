@@ -1,175 +1,309 @@
-use anyhow::Result;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Html,
-    routing::get,
-    Router,
-};
+use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::net::TcpListener;
+use tokio::sync::Mutex;
+use tracing::{error, info, warn};
+use anyhow::Result;
 use std::collections::HashMap;
-use tracing::info;
+use std::time::{Duration, Instant};
+use sysinfo::{System, SystemExt, CpuExt};
 
-#[derive(Debug, Clone)]
+/// 性能分析服务器
 pub struct ProfilingServer {
-    stats: Arc<HashMap<String, String>>,
+    port: u16,
+    stats: Arc<Mutex<ProfilingStats>>,
+    is_running: Arc<Mutex<bool>>,
+}
+
+/// 性能统计信息
+#[derive(Debug, Default)]
+pub struct ProfilingStats {
+    pub start_time: Option<Instant>,
+    pub request_count: u64,
+    pub error_count: u64,
+    pub memory_usage_bytes: u64,
+    pub cpu_usage_percent: f64,
+    pub active_connections: u32,
+    pub custom_metrics: HashMap<String, f64>,
 }
 
 impl ProfilingServer {
-    pub fn new() -> Self {
-        let mut stats = HashMap::new();
-        stats.insert("start_time".to_string(), chrono::Utc::now().to_rfc3339());
-        stats.insert("version".to_string(), env!("CARGO_PKG_VERSION").to_string());
-        
+    /// 创建新的性能分析服务器
+    pub fn new(port: u16) -> Self {
         Self {
-            stats: Arc::new(stats),
+            port,
+            stats: Arc::new(Mutex::new(ProfilingStats::default())),
+            is_running: Arc::new(Mutex::new(false)),
         }
     }
 
-    pub async fn start_profiling_server(port: &str) -> Result<()> {
-        let addr = format!("127.0.0.1:{}", port).parse()?;
-        info!("Starting profiling server on {}", addr);
-        
-        let app = Router::new()
-            .route("/", get(Self::index))
-            .route("/stats", get(Self::stats))
-            .route("/health", get(Self::health))
-            .with_state(Arc::new(ProfilingServer::new()));
-        
-        axum::Server::bind(&addr)
-            .serve(app.into_make_service())
-            .await?;
-        
+    /// 启动性能分析服务器
+    pub async fn start(&self) -> Result<()> {
+        let mut is_running = self.is_running.lock().await;
+        if *is_running {
+            warn!("Profiling server is already running");
+            return Ok(());
+        }
+
+        *is_running = true;
+        drop(is_running);
+
+        let port = self.port;
+        let stats = self.stats.clone();
+        let is_running = self.is_running.clone();
+
+        // 启动性能分析服务器
+        tokio::spawn(async move {
+            if let Err(e) = Self::run_server(port, stats, is_running).await {
+                error!("Profiling server error: {}", e);
+            }
+        });
+
+        info!("Profiling server started on port {}", self.port);
         Ok(())
     }
 
-    async fn index(State(stats): State<Arc<ProfilingServer>>) -> Html<String> {
+    /// 运行性能分析服务器
+    async fn run_server(
+        port: u16,
+        stats: Arc<Mutex<ProfilingStats>>,
+        is_running: Arc<Mutex<bool>>,
+    ) -> Result<()> {
+        let addr = format!("0.0.0.0:{}", port).parse::<SocketAddr>()?;
+        let listener = TcpListener::bind(addr).await?;
+
+        info!("Profiling server listening on {}", addr);
+
+        // 初始化统计信息
+        {
+            let mut stats_guard = stats.lock().await;
+            stats_guard.start_time = Some(Instant::now());
+        }
+
+        // 启动统计信息更新任务
+        let stats_clone = stats.clone();
+        tokio::spawn(async move {
+            Self::update_stats_periodically(stats_clone).await;
+        });
+
+        loop {
+            // 检查是否应该停止
+            {
+                let running = is_running.lock().await;
+                if !*running {
+                    break;
+                }
+            }
+
+            tokio::select! {
+                accept_result = listener.accept() => {
+                    match accept_result {
+                        Ok((socket, addr)) => {
+                            let stats = stats.clone();
+                            tokio::spawn(async move {
+                                if let Err(e) = Self::handle_connection(socket, addr, stats).await {
+                                    error!("Connection handling error: {}", e);
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            error!("Accept error: {}", e);
+                        }
+                    }
+                }
+                _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                    // 定期检查停止信号
+                }
+            }
+        }
+
+        info!("Profiling server stopped");
+        Ok(())
+    }
+
+    /// 处理连接
+    async fn handle_connection(
+        mut socket: tokio::net::TcpStream,
+        addr: SocketAddr,
+        stats: Arc<Mutex<ProfilingStats>>,
+    ) -> Result<()> {
+        // 更新活跃连接数
+        {
+            let mut stats_guard = stats.lock().await;
+            stats_guard.active_connections += 1;
+            stats_guard.request_count += 1;
+        }
+
+        // 简单的HTTP响应
+        let response = Self::generate_profiling_response(&stats).await;
+        
+        if let Err(e) = tokio::io::AsyncWriteExt::write_all(&mut socket, response.as_bytes()).await {
+            error!("Failed to write response to {}: {}", addr, e);
+            
+            // 更新错误计数
+            let mut stats_guard = stats.lock().await;
+            stats_guard.error_count += 1;
+        }
+
+        // 更新活跃连接数
+        {
+            let mut stats_guard = stats.lock().await;
+            stats_guard.active_connections = stats_guard.active_connections.saturating_sub(1);
+        }
+
+        Ok(())
+    }
+
+    /// 生成性能分析响应
+    async fn generate_profiling_response(stats: &Arc<Mutex<ProfilingStats>>) -> String {
+        let stats_guard = stats.lock().await;
+        
+        let uptime = stats_guard.start_time
+            .map(|start| {
+                let duration = start.elapsed();
+                format!("{}s", duration.as_secs())
+            })
+            .unwrap_or_else(|| "unknown".to_string());
+
         let html = format!(
             r#"
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>DNSSeeder Profiling</title>
-                <style>
-                    body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                    .container {{ max-width: 800px; margin: 0 auto; }}
-                    .header {{ background: #f0f0f0; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
-                    .section {{ background: white; padding: 20px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px; }}
-                    .metric {{ display: flex; justify-content: space-between; margin: 10px 0; }}
-                    .metric-label {{ font-weight: bold; }}
-                    .metric-value {{ color: #666; }}
-                    .refresh {{ background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }}
-                    .refresh:hover {{ background: #005a87; }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>DNSSeeder Profiling Dashboard</h1>
-                        <p>Real-time monitoring and profiling information</p>
-                    </div>
-                    
-                    <div class="section">
-                        <h2>System Information</h2>
-                        <div class="metric">
-                            <span class="metric-label">Version:</span>
-                            <span class="metric-value">{}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Start Time:</span>
-                            <span class="metric-value">{}</span>
-                        </div>
-                        <div class="metric">
-                            <span class="metric-label">Uptime:</span>
-                            <span class="metric-value" id="uptime">Calculating...</span>
-                        </div>
-                    </div>
-                    
-                    <div class="section">
-                        <h2>Performance Metrics</h2>
-                        <div id="metrics">Loading metrics...</div>
-                    </div>
-                    
-                    <div class="section">
-                        <button class="refresh" onclick="refreshData()">Refresh Data</button>
-                    </div>
-                </div>
-                
-                <script>
-                    function refreshData() {{
-                        fetch('/stats')
-                            .then(response => response.json())
-                            .then(data => {{
-                                document.getElementById('metrics').innerHTML = formatMetrics(data);
-                            }});
-                        
-                        updateUptime();
-                    }}
-                    
-                    function formatMetrics(data) {{
-                        let html = '';
-                        for (const [key, value] of Object.entries(data)) {{
-                            html += `<div class="metric">
-                                <span class="metric-label">${{key}}:</span>
-                                <span class="metric-value">${{value}}</span>
-                            </div>`;
-                        }}
-                        return html;
-                    }}
-                    
-                    function updateUptime() {{
-                        const startTime = new Date('{}');
-                        const now = new Date();
-                        const uptime = now - startTime;
-                        const seconds = Math.floor(uptime / 1000);
-                        const minutes = Math.floor(seconds / 60);
-                        const hours = Math.floor(minutes / 60);
-                        const days = Math.floor(hours / 24);
-                        
-                        let uptimeStr = '';
-                        if (days > 0) uptimeStr += `${{days}}d `;
-                        if (hours > 0) uptimeStr += `${{hours % 24}}h `;
-                        if (minutes > 0) uptimeStr += `${{minutes % 60}}m `;
-                        uptimeStr += `${{seconds % 60}}s`;
-                        
-                        document.getElementById('uptime').textContent = uptimeStr;
-                    }}
-                    
-                    // 初始加载
-                    refreshData();
-                    setInterval(updateUptime, 1000);
-                </script>
-            </body>
-            </html>
-            "#,
-            stats.stats.get("version").unwrap_or(&"Unknown".to_string()),
-            stats.stats.get("start_time").unwrap_or(&"Unknown".to_string()),
-            stats.stats.get("start_time").unwrap_or(&"Unknown".to_string())
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DNSSeeder Profiling</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .metric {{ margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }}
+        .metric h3 {{ margin: 0 0 10px 0; color: #333; }}
+        .metric .value {{ font-size: 18px; font-weight: bold; color: #007acc; }}
+        .metric .description {{ color: #666; font-size: 14px; }}
+    </style>
+</head>
+<body>
+    <h1>DNSSeeder Performance Metrics</h1>
+    
+    <div class="metric">
+        <h3>Uptime</h3>
+        <div class="value">{}</div>
+        <div class="description">Server running time</div>
+    </div>
+    
+    <div class="metric">
+        <h3>Total Requests</h3>
+        <div class="value">{}</div>
+        <div class="description">Total profiling requests received</div>
+    </div>
+    
+    <div class="metric">
+        <h3>Active Connections</h3>
+        <div class="value">{}</div>
+        <div class="description">Current active connections</div>
+    </div>
+    
+    <div class="metric">
+        <h3>Memory Usage</h3>
+        <div class="value">{:.2} MB</div>
+        <div class="description">Current memory usage</div>
+    </div>
+    
+    <div class="metric">
+        <h3>Error Rate</h3>
+        <div class="value">{:.2}%</div>
+        <div class="description">Error rate based on total requests</div>
+    </div>
+    
+    <div class="metric">
+        <h3>Custom Metrics</h3>
+        <div class="value">{}</div>
+        <div class="description">Number of custom metrics tracked</div>
+    </div>
+    
+    <p><em>Last updated: {}</em></p>
+</body>
+</html>
+"#,
+            uptime,
+            stats_guard.request_count,
+            stats_guard.active_connections,
+            stats_guard.memory_usage_bytes as f64 / 1024.0 / 1024.0,
+            if stats_guard.request_count > 0 {
+                (stats_guard.error_count as f64 / stats_guard.request_count as f64) * 100.0
+            } else {
+                0.0
+            },
+            stats_guard.custom_metrics.len(),
+            chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
         );
-        
-        Html(html)
+
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\n\r\n{}",
+            html.len(),
+            html
+        )
     }
 
-    async fn stats(State(stats): State<Arc<ProfilingServer>>) -> axum::Json<HashMap<String, String>> {
-        let mut current_stats = (*stats).stats.as_ref().clone();
+    /// 定期更新统计信息
+    async fn update_stats_periodically(stats: Arc<Mutex<ProfilingStats>>) {
+        let mut interval = tokio::time::interval(Duration::from_secs(5));
         
-        // 添加实时统计信息
-        current_stats.insert("memory_usage".to_string(), "N/A".to_string());
-        current_stats.insert("cpu_usage".to_string(), "N/A".to_string());
-        current_stats.insert("active_connections".to_string(), "0".to_string());
-        current_stats.insert("requests_per_second".to_string(), "0".to_string());
-        
-        axum::Json(current_stats)
+        loop {
+            interval.tick().await;
+            
+            let mut stats_guard = stats.lock().await;
+            
+            // 更新内存使用情况
+            let mut system = System::new_all();
+            stats_guard.memory_usage_bytes = system.used_memory();
+            
+            // 更新CPU使用情况
+            system.refresh_cpu();
+            let cpu_usage: f64 = system.cpus().iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() as f64;
+            stats_guard.cpu_usage_percent = cpu_usage / system.cpus().len() as f64;
+        }
     }
 
-    async fn health() -> (StatusCode, axum::Json<serde_json::Value>) {
-        let response = serde_json::json!({
-            "status": "healthy",
-            "service": "profiling",
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        });
-        
-        (StatusCode::OK, axum::Json(response))
+    /// 添加自定义指标
+    pub async fn add_custom_metric(&self, name: String, value: f64) {
+        let mut stats = self.stats.lock().await;
+        stats.custom_metrics.insert(name, value);
+    }
+
+    /// 获取统计信息
+    pub async fn get_stats(&self) -> ProfilingStats {
+        self.stats.lock().await.clone()
+    }
+
+    /// 停止性能分析服务器
+    pub async fn stop(&self) -> Result<()> {
+        let mut is_running = self.is_running.lock().await;
+        *is_running = false;
+        info!("Profiling server stop signal sent");
+        Ok(())
+    }
+}
+
+impl Clone for ProfilingServer {
+    fn clone(&self) -> Self {
+        Self {
+            port: self.port,
+            stats: self.stats.clone(),
+            is_running: self.is_running.clone(),
+        }
+    }
+}
+
+impl ProfilingStats {
+    /// 克隆统计信息
+    pub fn clone(&self) -> Self {
+        Self {
+            start_time: self.start_time,
+            request_count: self.request_count,
+            error_count: self.error_count,
+            memory_usage_bytes: self.memory_usage_bytes,
+            cpu_usage_percent: self.cpu_usage_percent,
+            active_connections: self.active_connections,
+            custom_metrics: self.custom_metrics.clone(),
+        }
     }
 }
 
@@ -177,20 +311,18 @@ impl ProfilingServer {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_profiling_server_creation() {
-        let server = ProfilingServer::new();
-        assert!(server.stats.contains_key("version"));
-        assert!(server.stats.contains_key("start_time"));
+    #[tokio::test]
+    async fn test_profiling_server_creation() {
+        let server = ProfilingServer::new(8080);
+        assert_eq!(server.port, 8080);
     }
 
-    #[test]
-    fn test_stats_contains_required_fields() {
-        let server = ProfilingServer::new();
-        let stats = &*server.stats;
+    #[tokio::test]
+    async fn test_custom_metrics() {
+        let server = ProfilingServer::new(8081);
+        server.add_custom_metric("test_metric".to_string(), 42.0).await;
         
-        assert!(stats.contains_key("version"));
-        assert!(stats.contains_key("start_time"));
-        assert_eq!(stats.get("version").unwrap(), env!("CARGO_PKG_VERSION"));
+        let stats = server.get_stats().await;
+        assert_eq!(stats.custom_metrics.get("test_metric"), Some(&42.0));
     }
 }

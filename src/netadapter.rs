@@ -1,202 +1,370 @@
-use crate::config::Config;
-use crate::types::{NetAddress, NetworkMessage, VersionMessage, AddressesMessage, RequestAddressesMessage};
-use anyhow::Result;
-use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::net::TcpStream;
-use tokio::time::timeout;
-use tracing::{debug, info};
+use anyhow::Result;
+use kaspa_consensus_core::config::Config as ConsensusConfig;
+use kaspa_core::time::unix_now;
+use kaspa_p2p_lib::{
+    Adaptor, Hub, ConnectionInitializer, Router, IncomingRoute, 
+    KaspadMessagePayloadType, KaspadHandshake, PeerKey,
+    pb::{kaspad_message::Payload, VersionMessage, RequestAddressesMessage, AddressesMessage, KaspadMessage},
+    make_message, common::ProtocolError
+};
+use kaspa_utils_tower::counters::TowerConnectionCounters;
+use tokio::sync::{mpsc, Mutex};
+use tonic::async_trait;
+use tracing::{error, info, debug, warn};
+use uuid::Uuid;
+use crate::types::NetAddress;
 
-// 使用rusty-kaspa中的P2P协议
-// 注意：core模块是私有的，我们只能使用公共API
-use kaspa_p2p_lib::common::ProtocolError;
-
-pub struct NetworkAdapter {
-    config: Config,
+/// DNS种子连接初始化器，专门用于地址收集
+pub struct DnsSeederConnectionInitializer {
+    version_message: VersionMessage,
+    addresses_tx: mpsc::Sender<Vec<NetAddress>>,
 }
 
-impl NetworkAdapter {
-    pub fn new(config: &Config) -> Result<Self> {
+impl DnsSeederConnectionInitializer {
+    pub fn new(
+        consensus_config: &ConsensusConfig,
+        addresses_tx: mpsc::Sender<Vec<NetAddress>>,
+    ) -> Self {
+        let version_message = VersionMessage {
+            protocol_version: 5, // Kaspa 协议版本
+            services: 0,
+            timestamp: unix_now() as i64,
+            address: None,
+            id: Vec::from(Uuid::new_v4().as_bytes()),
+            user_agent: "/kaspa-dnsseeder:0.1.0/".to_string(),
+            disable_relay_tx: true,
+            subnetwork_id: None,
+            network: consensus_config.params.network_name().to_string(),
+        };
+
+        Self {
+            version_message,
+            addresses_tx,
+        }
+    }
+}
+
+#[async_trait]
+impl ConnectionInitializer for DnsSeederConnectionInitializer {
+    async fn initialize_connection(&self, router: Arc<Router>) -> Result<(), ProtocolError> {
+        // 1. 订阅握手消息并启动路由器
+        let mut handshake = KaspadHandshake::new(&router);
+        router.start();
+
+        // 2. 执行握手
+        debug!("Starting handshake with peer");
+        let peer_version = handshake.handshake(self.version_message.clone()).await?;
+        info!("Handshake completed with peer. User agent: {}", peer_version.user_agent);
+
+        // 3. 订阅地址相关消息
+        let addresses_receiver = router.subscribe(vec![KaspadMessagePayloadType::Addresses]);
+        
+        // 4. 发送 Ready 消息完成握手
+        handshake.exchange_ready_messages().await?;
+
+        // 5. 请求地址
+        debug!("Requesting addresses from peer");
+        let request_addresses = make_message!(
+            Payload::RequestAddresses,
+            RequestAddressesMessage {
+                include_all_subnetworks: true,
+                subnetwork_id: None,
+            }
+        );
+        router.enqueue(request_addresses).await?;
+
+        // 6. 启动ping-pong处理协程（保持连接活跃）
+        let router_clone = router.clone();
+        tokio::spawn(async move {
+            if let Err(e) = DnsseedNetAdapter::handle_ping_pong(router_clone).await {
+                debug!("Ping-pong handler error: {}", e);
+            }
+        });
+
+        // 7. 等待地址响应
+        // 启动地址响应处理协程
+        let addresses_tx = self.addresses_tx.clone();
+        
+        tokio::spawn(async move {
+            if let Err(e) = Self::handle_addresses_response(addresses_receiver, addresses_tx).await {
+                error!("Failed to handle addresses response: {}", e);
+            }
+        });
+
+        Ok(())
+    }
+}
+
+impl DnsSeederConnectionInitializer {
+    async fn handle_addresses_response(
+        mut addresses_receiver: IncomingRoute,
+        addresses_tx: mpsc::Sender<Vec<NetAddress>>,
+    ) -> Result<(), ProtocolError> {
+        // 等待地址消息，带超时
+        tokio::select! {
+            msg_opt = addresses_receiver.recv() => {
+                if let Some(msg) = msg_opt {
+                    if let Some(Payload::Addresses(addresses_msg)) = msg.payload {
+                        debug!("Received {} addresses from peer", addresses_msg.address_list.len());
+                        
+                        // 转换地址格式
+                        let addresses: Vec<NetAddress> = addresses_msg.address_list
+                            .into_iter()
+                            .filter_map(|addr| {
+                                // 解析 IP 地址字节
+                                if addr.ip.len() == 4 {
+                                    // IPv4
+                                    let ip_bytes: [u8; 4] = [addr.ip[0], addr.ip[1], addr.ip[2], addr.ip[3]];
+                                    let ipv4 = std::net::Ipv4Addr::from(ip_bytes);
+                                    Some(NetAddress::new(std::net::IpAddr::V4(ipv4), addr.port as u16))
+                                } else if addr.ip.len() == 16 {
+                                    // IPv6
+                                    let mut ip_bytes = [0u8; 16];
+                                    ip_bytes.copy_from_slice(&addr.ip);
+                                    let ipv6 = std::net::Ipv6Addr::from(ip_bytes);
+                                    Some(NetAddress::new(std::net::IpAddr::V6(ipv6), addr.port as u16))
+                                } else {
+                                    warn!("Invalid IP address length: {}", addr.ip.len());
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        // 发送地址到主线程
+                        if let Err(e) = addresses_tx.send(addresses).await {
+                            warn!("Failed to send addresses to main thread: {}", e);
+                        }
+                    }
+                }
+            }
+            _ = tokio::time::sleep(Duration::from_secs(30)) => {
+                warn!("Timeout waiting for addresses from peer");
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// DNS种子网络适配器，使用真正的kaspa-p2p-lib
+pub struct DnsseedNetAdapter {
+    adaptor: Arc<Adaptor>,
+    addresses_rx: Arc<Mutex<mpsc::Receiver<Vec<NetAddress>>>>,
+}
+
+impl DnsseedNetAdapter {
+    /// 创建新的网络适配器实例
+    pub fn new(consensus_config: Arc<ConsensusConfig>) -> Result<Self> {
+        let (addresses_tx, addresses_rx) = mpsc::channel(100);
+        
+        let initializer = Arc::new(DnsSeederConnectionInitializer::new(
+            &consensus_config,
+            addresses_tx,
+        ));
+        
+        let hub = Hub::new();
+        let counters = Arc::new(TowerConnectionCounters::default());
+        
+        let adaptor = Adaptor::client_only(hub, initializer, counters);
+        
         Ok(Self {
-            config: config.clone(),
+            adaptor,
+            addresses_rx: Arc::new(Mutex::new(addresses_rx)),
         })
     }
 
-    pub async fn connect_to_peer(&self, address: &NetAddress) -> Result<PeerConnection> {
-        let socket_addr = SocketAddr::new(address.ip.0, address.port);
+    /// 连接到指定地址并获取地址列表
+    pub async fn connect_and_get_addresses(&self, address: &str) -> Result<(VersionMessage, Vec<NetAddress>)> {
+        info!("Connecting to peer: {}", address);
         
-        debug!("Connecting to peer: {}", address.to_string());
+        // 实现指数退避重连策略
+        let mut retry_count = 0;
+        let max_retries = 3;
+        let base_delay = Duration::from_secs(1);
         
-        let stream = timeout(Duration::from_secs(10), TcpStream::connect(socket_addr)).await??;
-        stream.set_nodelay(true)?;
-        
-        let connection = PeerConnection::new(stream, address.clone());
-        
-        Ok(connection)
+        loop {
+            match self.try_connect_peer(address).await {
+                Ok((peer_key, version_message, addresses)) => {
+                    info!("Successfully connected to peer: {} (key: {})", address, peer_key);
+                    return Ok((version_message, addresses));
+                }
+                Err(e) => {
+                    retry_count += 1;
+                    if retry_count >= max_retries {
+                        return Err(anyhow::anyhow!("Failed to connect to peer {} after {} retries: {}", address, max_retries, e));
+                    }
+                    
+                    let delay = base_delay * 2_u32.pow(retry_count as u32 - 1);
+                    warn!("Connection attempt {} failed for {}: {}. Retrying in {:?}...", retry_count, address, e, delay);
+                    tokio::time::sleep(delay).await;
+                }
+            }
+        }
     }
 
-    pub async fn poll_peer(&self, address: &NetAddress) -> Result<Vec<NetAddress>> {
-        let mut connection = self.connect_to_peer(address).await?;
-        
-        // 发送版本消息
-        let version_msg = VersionMessage {
-            protocol_version: 1,
-            user_agent: "DNSSeeder/0.1.0".to_string(),
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-            nonce: rand::random(),
-        };
-        
-        let network_msg = NetworkMessage::version(&version_msg);
-        connection.send_message(&network_msg).await?;
-        
-        // 等待版本响应
-        let response = connection.receive_message().await?;
-        if response.command != "version" {
-            return Err(anyhow::anyhow!("Expected version message, got: {}", response.command));
-        }
-        
-        // 检查协议版本
-        if let Ok(peer_version) = bincode::deserialize::<VersionMessage>(&response.payload) {
-            if self.config.min_proto_ver > 0 && peer_version.protocol_version < self.config.min_proto_ver as u32 {
-                return Err(anyhow::anyhow!(
-                    "Peer protocol version {} is below minimum: {}",
-                    peer_version.protocol_version,
-                    self.config.min_proto_ver
-                ));
+    /// 尝试连接单个节点
+    async fn try_connect_peer(&self, address: &str) -> Result<(PeerKey, VersionMessage, Vec<NetAddress>)> {
+        // 连接到对等节点
+        let peer_key = self.adaptor.connect_peer_with_retries(
+            address.to_string(),
+            1, // 单次连接尝试
+            Duration::from_secs(5), // 连接超时5秒
+        ).await.map_err(|e| {
+            // 分类错误类型
+            match e {
+                kaspa_p2p_lib::ConnectionError::ProtocolError(_) => {
+                    anyhow::anyhow!("Protocol error connecting to {}: {}", address, e)
+                }
+                kaspa_p2p_lib::ConnectionError::NoAddress => {
+                    anyhow::anyhow!("Invalid address format for {}: {}", address, e)
+                }
+                kaspa_p2p_lib::ConnectionError::IoError(_) => {
+                    anyhow::anyhow!("I/O error connecting to {}: {}", address, e)
+                }
+                _ => {
+                    anyhow::anyhow!("Connection failed to {}: {}", address, e)
+                }
             }
-            
-            // 检查用户代理版本
-            if let Some(ref min_ua_ver) = self.config.min_ua_ver {
-                if !self.check_user_agent_version(min_ua_ver, &peer_version.user_agent) {
-                    return Err(anyhow::anyhow!(
-                        "Peer user agent {} doesn't satisfy minimum: {}",
-                        peer_version.user_agent,
-                        min_ua_ver
-                    ));
+        })?;
+
+        // 等待地址响应，带超时
+        let addresses = self.wait_for_addresses_with_timeout(peer_key).await?;
+
+        // 获取对等节点信息（包括版本信息）
+        let version_message = self.get_peer_version_info(peer_key).await?;
+
+        // 断开连接
+        self.adaptor.terminate(peer_key).await;
+
+        Ok((peer_key, version_message, addresses))
+    }
+
+    /// 等待地址响应，带超时
+    async fn wait_for_addresses_with_timeout(&self, peer_key: PeerKey) -> Result<Vec<NetAddress>> {
+        let mut addresses_rx = self.addresses_rx.lock().await;
+        
+        tokio::select! {
+            result = addresses_rx.recv() => {
+                match result {
+                    Some(addresses) => {
+                        info!("Received {} addresses from peer {}", addresses.len(), peer_key);
+                        Ok(addresses)
+                    }
+                    None => {
+                        warn!("Address channel closed for peer {}", peer_key);
+                        Ok(Vec::new())
+                    }
+                }
+            }
+            _ = tokio::time::sleep(Duration::from_secs(30)) => {
+                warn!("Timeout waiting for addresses from peer {}", peer_key);
+                Ok(Vec::new())
+            }
+        }
+    }
+
+    /// 获取对等节点版本信息
+    async fn get_peer_version_info(&self, peer_key: PeerKey) -> Result<VersionMessage> {
+        let peers = self.adaptor.active_peers();
+        let version_message = peers.iter()
+            .find(|peer| peer.key() == peer_key)
+            .map(|peer| {
+                let props = peer.properties();
+                VersionMessage {
+                    protocol_version: props.protocol_version,
+                    services: 0,
+                    timestamp: unix_now() as i64,
+                    address: None,
+                    id: Vec::new(),
+                    user_agent: props.user_agent.clone(),
+                    disable_relay_tx: props.disable_relay_tx,
+                    subnetwork_id: props.subnetwork_id.clone().map(|id| kaspa_p2p_lib::pb::SubnetworkId {
+                        bytes: <[u8]>::to_vec(id.as_ref())
+                    }),
+                    network: "".to_string(), // 网络名称不在 properties 中
+                }
+            })
+            .unwrap_or_else(|| {
+                warn!("Could not find peer properties for {}", peer_key);
+                VersionMessage {
+                    protocol_version: 0,
+                    services: 0,
+                    timestamp: unix_now() as i64,
+                    address: None,
+                    id: Vec::new(),
+                    user_agent: "unknown".to_string(),
+                    disable_relay_tx: false,
+                    subnetwork_id: None,
+                    network: "".to_string(),
+                }
+            });
+
+        Ok(version_message)
+    }
+
+    /// 关闭适配器
+    pub async fn close(&self) {
+        self.adaptor.close().await;
+    }
+
+    /// 处理ping-pong消息，保持连接活跃
+    async fn handle_ping_pong(router: Arc<Router>) -> Result<(), ProtocolError> {
+        // 订阅ping消息
+        let mut ping_receiver = router.subscribe(vec![KaspadMessagePayloadType::Ping]);
+        
+        loop {
+            tokio::select! {
+                msg_opt = ping_receiver.recv() => {
+                    if let Some(msg) = msg_opt {
+                        if let Some(Payload::Ping(ping_msg)) = msg.payload {
+                            debug!("Received ping message with nonce: {}", ping_msg.nonce);
+                            
+                            // 发送pong响应
+                            let pong_message = make_message!(
+                                Payload::Pong,
+                                kaspa_p2p_lib::pb::PongMessage { nonce: ping_msg.nonce }
+                            );
+                            
+                            if let Err(e) = router.enqueue(pong_message).await {
+                                warn!("Failed to send pong response: {}", e);
+                                break;
+                            }
+                            
+                            debug!("Sent pong response with nonce: {}", ping_msg.nonce);
+                        }
+                    } else {
+                        // 连接已关闭
+                        debug!("Ping receiver closed, stopping ping-pong handler");
+                        break;
+                    }
+                }
+                _ = tokio::time::sleep(Duration::from_secs(60)) => {
+                    // 定期发送ping消息保持连接活跃
+                    let ping_message = make_message!(
+                        Payload::Ping,
+                        kaspa_p2p_lib::pb::PingMessage { nonce: rand::random::<u64>() }
+                    );
+                    
+                    if let Err(e) = router.enqueue(ping_message).await {
+                        debug!("Failed to send ping message: {}", e);
+                        break;
+                    }
                 }
             }
         }
         
-        // 请求地址列表
-        let request = RequestAddressesMessage {
-            include_all_subnetworks: true,
-            subnetwork_id: None,
-        };
-        
-        let addr_request = NetworkMessage::request_addresses(&request);
-        connection.send_message(&addr_request).await?;
-        
-        // 等待地址响应
-        let addr_response = connection.receive_message().await?;
-        if addr_response.command != "addr" {
-            return Err(anyhow::anyhow!("Expected addr message, got: {}", addr_response.command));
+        Ok(())
+    }
+}
+
+impl Clone for DnsseedNetAdapter {
+    fn clone(&self) -> Self {
+        Self {
+            adaptor: Arc::clone(&self.adaptor),
+            addresses_rx: Arc::clone(&self.addresses_rx),
         }
-        
-        let addresses = bincode::deserialize::<AddressesMessage>(&addr_response.payload)?;
-        
-        info!(
-            "Peer {} sent {} addresses",
-            address.to_string(),
-            addresses.addresses.len()
-        );
-        
-        Ok(addresses.addresses)
-    }
-
-    fn check_user_agent_version(&self, min_version: &str, peer_version: &str) -> bool {
-        // 简单的版本比较逻辑，可以根据需要扩展
-        min_version <= peer_version
-    }
-
-    // 使用rusty-kaspa的P2P协议进行连接
-    pub async fn connect_with_kaspa_protocol(&self, address: &NetAddress) -> Result<()> {
-        let socket_addr = SocketAddr::new(address.ip.0, address.port);
-        
-        debug!("Connecting with Kaspa P2P protocol to: {}", address.to_string());
-        
-        // 这里应该实现与rusty-kaspa P2P协议的集成
-        // 由于协议复杂性，这里提供一个基础框架
-        
-        // 1. 建立TCP连接
-        let stream = timeout(Duration::from_secs(10), TcpStream::connect(socket_addr)).await??;
-        stream.set_nodelay(true)?;
-        
-        // 2. 执行握手
-        // TODO: 实现Kaspa P2P握手协议
-        
-        // 3. 交换版本信息
-        // TODO: 实现版本交换
-        
-        // 4. 请求地址
-        // TODO: 实现地址请求
-        
-        Ok(())
     }
 }
 
-pub struct PeerConnection {
-    stream: TcpStream,
-    address: NetAddress,
-}
-
-impl PeerConnection {
-    fn new(stream: TcpStream, address: NetAddress) -> Self {
-        Self { stream, address }
-    }
-
-    async fn send_message(&mut self, message: &NetworkMessage) -> Result<()> {
-        // 这里应该实现Kaspa协议的消息发送
-        // 简化实现，实际需要按照Kaspa协议规范
-        debug!("Sending message to {}: {}", self.address.to_string(), message.command);
-        Ok(())
-    }
-
-    async fn receive_message(&mut self) -> Result<NetworkMessage> {
-        // 这里应该实现Kaspa协议的消息接收
-        // 简化实现，实际需要按照Kaspa协议规范
-        let message = NetworkMessage::new("version", vec![]);
-        debug!("Received message from {}: {}", self.address.to_string(), message.command);
-        Ok(message)
-    }
-}
-
-impl Drop for PeerConnection {
-    fn drop(&mut self) {
-        debug!("Closing connection to {}", self.address.to_string());
-    }
-}
-
-// 错误类型转换 - 使用newtype模式
-pub struct KaspaProtocolError(ProtocolError);
-
-// 为ProtocolError提供转换方法
-pub fn protocol_error_to_anyhow(err: ProtocolError) -> anyhow::Error {
-    anyhow::anyhow!("Protocol error: {:?}", err)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::types::NetAddress;
-    use std::net::IpAddr;
-
-    #[tokio::test]
-    async fn test_network_adapter_creation() {
-        let config = Config::new();
-        let adapter = NetworkAdapter::new(&config);
-        assert!(adapter.is_ok());
-    }
-
-    #[test]
-    fn test_user_agent_version_check() {
-        let config = Config::new();
-        let adapter = NetworkAdapter::new(&config).unwrap();
-        
-        assert!(adapter.check_user_agent_version("1.0.0", "1.0.0"));
-        assert!(adapter.check_user_agent_version("1.0.0", "1.1.0"));
-        assert!(!adapter.check_user_agent_version("1.1.0", "1.0.0"));
-    }
-}

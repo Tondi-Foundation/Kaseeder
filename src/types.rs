@@ -1,31 +1,60 @@
+use kaspa_utils::networking::{NetAddress as KaspaNetAddress, IpAddress as KaspaIpAddress};
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, SystemTime};
+use std::net::IpAddr;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::SystemTime;
 
-// 使用rusty-kaspa中的NetAddress类型
-pub use kaspa_utils::networking::NetAddress;
-pub use kaspa_utils::networking::IpAddress;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NodeInfo {
-    pub address: NetAddress,
-    pub user_agent: String,
-    pub protocol_version: u32,
-    pub subnetwork_id: Option<String>,
-    pub last_connection: SystemTime,
+/// 网络地址，包装 rusty-kaspa 的 NetAddress
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct NetAddress {
+    pub ip: IpAddr,
+    pub port: u16,
 }
 
-impl NodeInfo {
-    pub fn new(address: NetAddress, user_agent: String, protocol_version: u32) -> Self {
+impl NetAddress {
+    pub fn new(ip: IpAddr, port: u16) -> Self {
+        Self { ip, port }
+    }
+
+    pub fn from_kaspa(kaspa_addr: &KaspaNetAddress) -> Self {
         Self {
-            address,
-            user_agent,
-            protocol_version,
-            subnetwork_id: None,
-            last_connection: SystemTime::now(),
+            ip: kaspa_addr.ip.0,
+            port: kaspa_addr.port,
+        }
+    }
+
+    pub fn to_kaspa(&self) -> KaspaNetAddress {
+        KaspaNetAddress {
+            ip: KaspaIpAddress::new(self.ip),
+            port: self.port,
         }
     }
 }
 
+
+
+/// 网络地址扩展特性
+pub trait NetAddressExt {
+    fn to_string(&self) -> String;
+    fn is_ipv4(&self) -> bool;
+    fn is_ipv6(&self) -> bool;
+}
+
+impl NetAddressExt for NetAddress {
+    fn to_string(&self) -> String {
+        format!("{}:{}", self.ip, self.port)
+    }
+
+    fn is_ipv4(&self) -> bool {
+        self.ip.is_ipv4()
+    }
+
+    fn is_ipv6(&self) -> bool {
+        self.ip.is_ipv6()
+    }
+}
+
+/// 版本消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionMessage {
     pub protocol_version: u32,
@@ -34,17 +63,20 @@ pub struct VersionMessage {
     pub nonce: u64,
 }
 
+/// 地址条目消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddressesMessage {
     pub addresses: Vec<NetAddress>,
 }
 
+/// 请求地址消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestAddressesMessage {
     pub include_all_subnetworks: bool,
     pub subnetwork_id: Option<String>,
 }
 
+/// 网络消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkMessage {
     pub command: String,
@@ -52,108 +84,82 @@ pub struct NetworkMessage {
 }
 
 impl NetworkMessage {
-    pub fn new(command: &str, payload: Vec<u8>) -> Self {
+    pub fn version(version_msg: &VersionMessage) -> Self {
+        let payload = bincode::serialize(version_msg).unwrap_or_default();
         Self {
-            command: command.to_string(),
+            command: "version".to_string(),
             payload,
         }
     }
 
-    pub fn version(version: &VersionMessage) -> Self {
-        let payload = bincode::serialize(version).unwrap_or_default();
-        Self::new("version", payload)
-    }
-
     pub fn request_addresses(request: &RequestAddressesMessage) -> Self {
         let payload = bincode::serialize(request).unwrap_or_default();
-        Self::new("getaddr", payload)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DnsRecord {
-    pub name: String,
-    pub record_type: DnsRecordType,
-    pub ttl: u32,
-    pub data: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum DnsRecordType {
-    A,
-    AAAA,
-    TXT,
-}
-
-impl DnsRecordType {
-    pub fn to_u16(&self) -> u16 {
-        match self {
-            DnsRecordType::A => 1,
-            DnsRecordType::AAAA => 28,
-            DnsRecordType::TXT => 16,
+        Self {
+            command: "getaddr".to_string(),
+            payload,
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 爬虫统计信息
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CrawlerStats {
-    pub total_nodes: usize,
-    pub active_nodes: usize,
-    pub failed_attempts: usize,
-    pub successful_connections: usize,
-    pub last_crawl: Option<SystemTime>,
-    pub crawl_duration: Option<Duration>,
+    pub total_nodes: AtomicU64,
+    pub active_nodes: AtomicU64,
+    pub failed_connections: AtomicU64,
+    pub successful_connections: AtomicU64,
+    pub last_update: SystemTime,
 }
 
 impl Default for CrawlerStats {
     fn default() -> Self {
         Self {
-            total_nodes: 0,
-            active_nodes: 0,
-            failed_attempts: 0,
-            successful_connections: 0,
-            last_crawl: None,
-            crawl_duration: None,
+            total_nodes: AtomicU64::new(0),
+            active_nodes: AtomicU64::new(0),
+            failed_connections: AtomicU64::new(0),
+            successful_connections: AtomicU64::new(0),
+            last_update: SystemTime::now(),
         }
     }
 }
 
-// 为NetAddress提供便捷方法的扩展trait
-pub trait NetAddressExt {
-    fn from_string(addr: &str) -> Option<Self> where Self: Sized;
-    fn to_string(&self) -> String;
-    fn is_recently_seen(&self, last_seen: SystemTime, threshold: Duration) -> bool;
-    fn is_good(&self, attempts: u32, successes: u32) -> bool;
-    fn should_retry(&self, last_attempt: Option<SystemTime>, min_interval: Duration) -> bool;
-}
-
-impl NetAddressExt for NetAddress {
-    fn from_string(addr: &str) -> Option<Self> {
-        addr.parse::<NetAddress>().ok()
+impl CrawlerStats {
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    fn to_string(&self) -> String {
-        format!("{}:{}", self.ip, self.port)
+    pub fn increment_failed_connections(&self) {
+        self.failed_connections.fetch_add(1, Ordering::Relaxed);
     }
 
-    fn is_recently_seen(&self, last_seen: SystemTime, threshold: Duration) -> bool {
-        if let Ok(elapsed) = SystemTime::now().duration_since(last_seen) {
-            elapsed < threshold
-        } else {
-            false
-        }
+    pub fn increment_successful_connections(&self) {
+        self.successful_connections.fetch_add(1, Ordering::Relaxed);
     }
 
-    fn is_good(&self, attempts: u32, successes: u32) -> bool {
-        successes > 0 && attempts < 10
+    pub fn update_total_nodes(&self, count: u64) {
+        self.total_nodes.store(count, Ordering::Relaxed);
     }
 
-    fn should_retry(&self, last_attempt: Option<SystemTime>, min_interval: Duration) -> bool {
-        if let Some(last_attempt) = last_attempt {
-            if let Ok(elapsed) = SystemTime::now().duration_since(last_attempt) {
-                return elapsed >= min_interval;
-            }
-        }
-        true
+    pub fn update_active_nodes(&self, count: u64) {
+        self.active_nodes.store(count, Ordering::Relaxed);
+    }
+
+    pub fn update_last_update(&mut self) {
+        self.last_update = SystemTime::now();
     }
 }
+
+/// DNS 记录类型
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DnsRecord {
+    pub name: String,
+    pub record_type: u16,
+    pub ttl: u32,
+    pub data: String,
+}
+
+/// 地址条目（保持向后兼容）
+pub type AddressEntry = NetAddress;
+
+/// 节点信息（保持向后兼容）
+pub type NodeInfo = NetAddress;

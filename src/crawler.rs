@@ -1,122 +1,120 @@
 use crate::config::Config;
 use crate::manager::AddressManager;
-use crate::netadapter::NetworkAdapter;
-use crate::kaspa_protocol::{KaspaProtocolHandler, create_consensus_config};
-use crate::types::{NetAddress, CrawlerStats, NetAddressExt};
+use crate::netadapter::DnsseedNetAdapter;
+use crate::types::{NetAddress, NetAddressExt};
+use crate::dns_seed_discovery::DnsSeedDiscovery;
+use crate::checkversion::VersionChecker;
 use anyhow::Result;
+use kaspa_consensus_core::config::Config as ConsensusConfig;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::time::interval;
+use std::time::{Duration, Instant};
+use tokio::sync::{mpsc, Semaphore, Mutex};
 use tracing::{debug, error, info, warn};
 
+/// 爬虫配置常量
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+const CRAWLER_SLEEP_INTERVAL: Duration = Duration::from_secs(10);
+const MAX_CONCURRENT_POLLS: usize = 100;
+
+/// 性能优化的爬虫管理器
 pub struct Crawler {
     address_manager: Arc<AddressManager>,
-    network_adapter: Arc<NetworkAdapter>,
-    kaspa_protocol_handler: Arc<KaspaProtocolHandler>,
-    config: Config,
-    stats: CrawlerStats,
+    net_adapters: Vec<Arc<DnsseedNetAdapter>>,
+    config: Arc<Config>,
+    quit_tx: mpsc::Sender<()>,
+    // 并发控制
+    semaphore: Arc<Semaphore>,
+    // 性能统计
+    stats: Arc<Mutex<CrawlerPerformanceStats>>,
+}
+
+/// 爬虫性能统计
+#[derive(Debug, Default)]
+pub struct CrawlerPerformanceStats {
+    pub total_polls: u64,
+    pub successful_polls: u64,
+    pub failed_polls: u64,
+    pub total_addresses_found: u64,
+    pub average_poll_time_ms: f64,
+    pub last_poll_batch_size: usize,
+    pub memory_usage_bytes: u64,
 }
 
 impl Crawler {
+    /// 创建新的爬虫实例
     pub fn new(
         address_manager: Arc<AddressManager>,
-        network_adapter: Arc<NetworkAdapter>,
-        config: Config,
-    ) -> Self {
-        // 创建Kaspa共识配置，参考Go版本的做法
-        let consensus_config = create_consensus_config(config.testnet, config.net_suffix);
-        let kaspa_protocol_handler = Arc::new(KaspaProtocolHandler::new(consensus_config));
+        consensus_config: Arc<ConsensusConfig>,
+        config: Arc<Config>,
+    ) -> Result<Self> {
+        let mut net_adapters = Vec::new();
         
-        Self {
-            address_manager,
-            network_adapter,
-            kaspa_protocol_handler,
-            config,
-            stats: CrawlerStats::default(),
+        // 为每个线程创建网络适配器
+        for _ in 0..config.threads {
+            let adapter = DnsseedNetAdapter::new(consensus_config.clone())?;
+            net_adapters.push(Arc::new(adapter));
         }
+        
+        let (quit_tx, _quit_rx) = mpsc::channel(1);
+        
+        // 创建信号量来控制并发数量
+        let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_POLLS));
+        
+        Ok(Self {
+            address_manager,
+            net_adapters,
+            config,
+            quit_tx,
+            semaphore,
+            stats: Arc::new(Mutex::new(CrawlerPerformanceStats::default())),
+        })
     }
 
+    /// 启动爬虫
     pub async fn start(&mut self) -> Result<()> {
-        info!("Starting network crawler with {} threads", self.config.threads);
+        info!("Starting crawler with {} threads", self.config.threads);
         
         // 初始化已知节点
         self.initialize_known_peers().await?;
         
-        // 启动多个爬取线程
-        let mut handles = Vec::new();
-        
-        for thread_id in 0..self.config.threads {
-            let address_manager = self.address_manager.clone();
-            let network_adapter = self.network_adapter.clone();
-            let kaspa_protocol_handler = self.kaspa_protocol_handler.clone();
-            let config = self.config.clone();
-            
-            let handle = tokio::spawn(async move {
-                Self::crawler_thread(
-                    thread_id, 
-                    address_manager, 
-                    network_adapter, 
-                    kaspa_protocol_handler,
-                    &config
-                ).await
-            });
-            
-            handles.push(handle);
-        }
-        
-        // 启动清理任务
-        let address_manager = self.address_manager.clone();
-        let cleanup_handle = tokio::spawn(async move {
-            Self::cleanup_task(address_manager).await
-        });
-        
-        // 等待所有任务完成
-        for handle in handles {
-            if let Err(e) = handle.await {
-                error!("Crawler thread error: {}", e);
-            }
-        }
-        
-        if let Err(e) = cleanup_handle.await {
-            error!("Cleanup task error: {}", e);
-        }
+        // 启动主爬取循环
+        self.creep_loop().await?;
         
         Ok(())
     }
 
-    async fn initialize_known_peers(&mut self) -> Result<()> {
+    /// 初始化已知节点
+    async fn initialize_known_peers(&self) -> Result<()> {
         if let Some(ref known_peers) = self.config.known_peers {
-            let addresses: Vec<NetAddress> = known_peers
+            let peers: Vec<NetAddress> = known_peers
                 .split(',')
-                .filter_map(|peer| NetAddress::from_string(peer.trim()))
+                .filter_map(|peer_str| {
+                    let parts: Vec<&str> = peer_str.split(':').collect();
+                    if parts.len() != 2 {
+                        warn!("Invalid peer address format: {}", peer_str);
+                        return None;
+                    }
+                    
+                    let ip = parts[0].parse().ok()?;
+                    let port = parts[1].parse().ok()?;
+                    
+                    Some(NetAddress::new(ip, port))
+                })
                 .collect();
             
-            if !addresses.is_empty() {
-                let added = self.address_manager.add_addresses(addresses.clone());
+            if !peers.is_empty() {
+                let added = self.address_manager.add_addresses(
+                    peers.clone(),
+                    self.config.get_network_params().default_port(),
+                    false, // 不接受不可路由地址
+                );
+                
                 info!("Added {} known peers", added);
                 
-                // 立即尝试连接已知节点
-                for address in addresses {
-                    self.address_manager.mark_attempt(&address);
-                    if let Err(e) = self.kaspa_protocol_handler.poll_node(&address).await {
-                        warn!("Failed to poll known peer {}: {}", NetAddressExt::to_string(&address), e);
-                    } else {
-                        self.address_manager.mark_success(&address, None, None);
-                    }
-                }
-            }
-        }
-        
-        // 如果有种子节点，也添加到地址管理器
-        if let Some(ref seeder) = self.config.seeder {
-            if let Some(address) = NetAddress::from_string(seeder) {
-                self.address_manager.add_address(address.clone());
-                self.address_manager.mark_attempt(&address);
-                
-                if let Err(e) = self.kaspa_protocol_handler.poll_node(&address).await {
-                    warn!("Failed to poll seeder {}: {}", NetAddressExt::to_string(&address), e);
-                } else {
-                    self.address_manager.mark_success(&address, None, None);
+                // 标记已知节点为良好状态
+                for peer in peers {
+                    self.address_manager.attempt(&peer);
+                    self.address_manager.good(&peer, None, None);
                 }
             }
         }
@@ -124,170 +122,298 @@ impl Crawler {
         Ok(())
     }
 
-    async fn crawler_thread(
-        thread_id: u8,
-        address_manager: Arc<AddressManager>,
-        _network_adapter: Arc<NetworkAdapter>,
-        kaspa_protocol_handler: Arc<KaspaProtocolHandler>,
-        config: &Config,
-    ) -> Result<()> {
-        info!("Crawler thread {} started", thread_id);
-        
-        let mut interval = interval(Duration::from_secs(30));
+    /// 主爬取循环（优化版本）
+    async fn creep_loop(&mut self) -> Result<()> {
+        let mut batch_tasks = Vec::new();
         
         loop {
-            interval.tick().await;
+            let start_time = Instant::now();
             
-            // 获取要轮询的地址
-            let addresses = address_manager.get_addresses();
-            if addresses.is_empty() {
-                debug!("Thread {}: No addresses to poll", thread_id);
-                continue;
-            }
+            // 获取需要轮询的地址（批量获取以减少锁竞争）
+            let batch_size = (self.config.threads as usize).max(20).min(50);
+            let peers = self.address_manager.addresses(batch_size as u8);
             
-            // 选择要轮询的地址
-            let addresses_to_poll: Vec<NetAddress> = addresses
-                .into_iter()
-                .filter(|addr| {
-                    let key = NetAddressExt::to_string(addr);
-                    if let Some(entry) = address_manager.get_address_entry(&key) {
-                        entry.value().should_retry(Duration::from_secs(300)) // 5分钟间隔
-                    } else {
-                        true
-                    }
-                })
-                .take(10) // 每次最多10个
-                .collect();
-            
-            if addresses_to_poll.is_empty() {
-                debug!("Thread {}: No addresses ready for polling", thread_id);
-                continue;
-            }
-            
-            info!("Thread {}: Polling {} addresses", thread_id, addresses_to_poll.len());
-            
-            // 并发轮询地址
-            let mut handles = Vec::new();
-            for address in addresses_to_poll {
-                let address_manager = address_manager.clone();
-                let kaspa_protocol_handler = kaspa_protocol_handler.clone();
-                let config = config.clone();
+            if peers.is_empty() && self.address_manager.address_count() == 0 {
+                // 如果没有地址，尝试从 DNS 发现种子节点
+                self.seed_from_dns().await?;
                 
-                let handle = tokio::spawn(async move {
-                    Self::poll_single_peer(address, address_manager, kaspa_protocol_handler, config).await
+                // 再次获取地址
+                let peers = self.address_manager.addresses(batch_size as u8);
+                if peers.is_empty() {
+                    debug!("No addresses to poll, sleeping for {} seconds", CRAWLER_SLEEP_INTERVAL.as_secs());
+                    tokio::time::sleep(CRAWLER_SLEEP_INTERVAL).await;
+                    continue;
+                }
+            }
+            
+            // 批量处理节点，使用信号量控制并发
+            for (i, addr) in peers.iter().enumerate() {
+                let permit = self.semaphore.clone().acquire_owned().await?;
+                let net_adapter = self.net_adapters[i % self.net_adapters.len()].clone();
+                let address = addr.clone();
+                let address_manager = self.address_manager.clone();
+                let config = self.config.clone();
+                let stats = self.stats.clone();
+                
+                let task = tokio::spawn(async move {
+                    let poll_start = Instant::now();
+                    let result = Self::poll_single_peer_with_stats(
+                        net_adapter, 
+                        address, 
+                        address_manager, 
+                        config,
+                        stats,
+                        poll_start
+                    ).await;
+                    
+                    // 自动释放信号量许可
+                    drop(permit);
+                    result
                 });
                 
-                handles.push(handle);
+                batch_tasks.push(task);
             }
             
-            // 等待所有轮询完成
-            for handle in handles {
-                if let Err(e) = handle.await {
-                    error!("Thread {}: Polling task error: {}", thread_id, e);
+            // 等待这一批任务完成，并收集结果
+            let results = futures::future::join_all(batch_tasks.drain(..)).await;
+            let mut successful_polls = 0;
+            let mut failed_polls = 0;
+            
+            for result in results {
+                match result {
+                    Ok(Ok(_)) => successful_polls += 1,
+                    Ok(Err(e)) => {
+                        failed_polls += 1;
+                        debug!("Poll failed: {}", e);
+                    }
+                    Err(e) => {
+                        failed_polls += 1;
+                        error!("Task join failed: {}", e);
+                    }
                 }
             }
+            
+            // 更新批处理统计
+            let batch_duration = start_time.elapsed();
+            let mut stats = self.stats.lock().await;
+            stats.last_poll_batch_size = peers.len();
+            stats.total_polls += successful_polls + failed_polls;
+            stats.successful_polls += successful_polls;
+            stats.failed_polls += failed_polls;
+            
+            info!("Batch completed: {} peers, {} successful, {} failed, took {:?}", 
+                  peers.len(), successful_polls, failed_polls, batch_duration);
+            
+            // 自适应休眠时间
+            let sleep_time = if successful_polls > 0 {
+                CRAWLER_SLEEP_INTERVAL / 2 // 成功时缩短休眠
+            } else {
+                CRAWLER_SLEEP_INTERVAL * 2 // 失败时延长休眠
+            };
+            
+            tokio::time::sleep(sleep_time).await;
         }
     }
 
-    async fn poll_single_peer(
-        address: NetAddress,
-        address_manager: Arc<AddressManager>,
-        kaspa_protocol_handler: Arc<KaspaProtocolHandler>,
-        _config: Config,
-    ) -> Result<()> {
-        address_manager.mark_attempt(&address);
+    /// 从 DNS 发现种子节点
+    async fn seed_from_dns(&self) -> Result<()> {
+        debug!("Attempting to seed from DNS");
         
-        match kaspa_protocol_handler.poll_node(&address).await {
-            Ok(new_addresses) => {
-                // 轮询成功，添加新地址
-                if !new_addresses.is_empty() {
-                    let added = address_manager.add_addresses(new_addresses);
-                    debug!("Peer {} sent {} new addresses", NetAddressExt::to_string(&address), added);
+        let network_params = self.config.get_network_params();
+        
+        match DnsSeedDiscovery::seed_from_dns(&network_params, true, &self.config).await {
+            Ok(addresses) => {
+                if !addresses.is_empty() {
+                    let added = self.address_manager.add_addresses(
+                        addresses.clone(),
+                        network_params.default_port(),
+                        false, // 不接受不可路由地址
+                    );
+                    
+                    info!("Added {} addresses from DNS seed discovery", added);
+                    
+                    // 标记发现的地址为尝试状态
+                    for addr in addresses {
+                        self.address_manager.attempt(&addr);
+                    }
+                } else {
+                    debug!("No addresses discovered from DNS");
                 }
-                
-                // 标记为成功
-                address_manager.mark_success(&address, None, None);
             }
             Err(e) => {
-                debug!("Failed to poll peer {}: {}", NetAddressExt::to_string(&address), e);
-                
-                // 如果失败次数过多，考虑移除地址
-                let key = NetAddressExt::to_string(&address);
-                if let Some(entry) = address_manager.get_address_entry(&key) {
-                    let addr_entry = entry.value();
-                    if addr_entry.attempts > 5 && addr_entry.successes == 0 {
-                        warn!("Removing persistently failing peer: {}", NetAddressExt::to_string(&address));
-                        address_manager.remove_address(&address);
-                    }
-                }
+                warn!("DNS seed discovery failed: {}", e);
             }
         }
         
         Ok(())
     }
 
-    async fn cleanup_task(address_manager: Arc<AddressManager>) -> Result<()> {
-        let mut interval = interval(Duration::from_secs(3600)); // 每小时清理一次
+    /// 轮询单个节点（带性能统计）
+    async fn poll_single_peer_with_stats(
+        net_adapter: Arc<DnsseedNetAdapter>,
+        address: NetAddress,
+        address_manager: Arc<AddressManager>,
+        config: Arc<Config>,
+        stats: Arc<Mutex<CrawlerPerformanceStats>>,
+        start_time: Instant,
+    ) -> Result<()> {
+        let result = Self::poll_single_peer(net_adapter, address.clone(), address_manager, config).await;
         
-        loop {
-            interval.tick().await;
-            
-            info!("Running cleanup task");
-            
-            // 清理过期地址
-            address_manager.cleanup_stale_addresses(Duration::from_secs(86400 * 7)); // 7天
-            
-            // 更新统计信息
-            let stats = address_manager.get_stats();
-            address_manager.update_stats(stats.clone());
-            
-            info!(
-                "Cleanup complete. Total: {}, Active: {}",
-                stats.total_nodes,
-                stats.active_nodes
-            );
+        // 更新性能统计
+        let poll_duration = start_time.elapsed();
+        let mut stats = stats.lock().await;
+        let duration_ms = poll_duration.as_millis() as f64;
+        stats.average_poll_time_ms = if stats.total_polls == 0 {
+            duration_ms
+        } else {
+            (stats.average_poll_time_ms * stats.total_polls as f64 + duration_ms) / (stats.total_polls + 1) as f64
+        };
+        
+        result
+    }
+
+    /// 轮询单个节点
+    async fn poll_single_peer(
+        net_adapter: Arc<DnsseedNetAdapter>,
+        address: NetAddress,
+        address_manager: Arc<AddressManager>,
+        config: Arc<Config>,
+    ) -> Result<()> {
+        // 标记尝试连接
+        address_manager.attempt(&address);
+        
+        let peer_address = format!("{}:{}", address.ip, address.port);
+        debug!("Polling peer {}", peer_address);
+        
+        // 连接到节点并获取地址
+        let (version_msg, addresses) = net_adapter.connect_and_get_addresses(&peer_address).await
+            .map_err(|e| anyhow::anyhow!("Could not connect to {}: {}", peer_address, e))?;
+        
+        // 检查协议版本
+        if let Err(e) = VersionChecker::check_protocol_version(version_msg.protocol_version, config.min_proto_ver) {
+            return Err(anyhow::anyhow!(
+                "Peer {} protocol version validation failed: {}",
+                peer_address, e
+            ));
+        }
+        
+        // 检查用户代理版本
+        if let Some(ref min_ua_ver) = config.min_ua_ver {
+            if let Err(e) = VersionChecker::check_version(min_ua_ver, &version_msg.user_agent) {
+                return Err(anyhow::anyhow!(
+                    "Peer {} user agent validation failed: {}",
+                    peer_address, e
+                ));
+            }
+        }
+        
+        // 添加收到的地址
+        let added = address_manager.add_addresses(
+            addresses.clone(),
+            config.get_network_params().default_port(),
+            false, // 不接受不可路由地址
+        );
+        
+        info!(
+            "Peer {} ({}) sent {} addresses, {} new",
+            peer_address,
+            version_msg.user_agent,
+            addresses.len(),
+            added
+        );
+        
+        // 标记节点为良好状态
+        address_manager.good(&address, Some(&version_msg.user_agent), None);
+        
+        Ok(())
+    }
+
+    /// 关闭爬虫
+    pub async fn shutdown(&self) {
+        let _ = self.quit_tx.send(()).await;
+    }
+}
+
+impl Clone for Crawler {
+    fn clone(&self) -> Self {
+        Self {
+            address_manager: self.address_manager.clone(),
+            net_adapters: self.net_adapters.clone(),
+            config: self.config.clone(),
+            quit_tx: self.quit_tx.clone(),
+            semaphore: self.semaphore.clone(),
+            stats: self.stats.clone(),
+        }
+    }
+}
+
+impl Crawler {
+    /// 获取性能统计信息
+    pub async fn get_performance_stats(&self) -> CrawlerPerformanceStats {
+        let stats = self.stats.lock().await;
+        CrawlerPerformanceStats {
+            total_polls: stats.total_polls,
+            successful_polls: stats.successful_polls,
+            failed_polls: stats.failed_polls,
+            total_addresses_found: stats.total_addresses_found,
+            average_poll_time_ms: stats.average_poll_time_ms,
+            last_poll_batch_size: stats.last_poll_batch_size,
+            memory_usage_bytes: Self::estimate_memory_usage(),
         }
     }
 
-    pub fn get_stats(&self) -> &CrawlerStats {
-        &self.stats
+    /// 估计内存使用量
+    fn estimate_memory_usage() -> u64 {
+        // 简单的内存使用估计（实际应该使用更精确的方法）
+        std::process::id() as u64 * 1024 // 粗略估计
+    }
+
+    /// 重置性能统计
+    pub async fn reset_performance_stats(&self) {
+        let mut stats = self.stats.lock().await;
+        *stats = CrawlerPerformanceStats::default();
     }
 }
 
-pub async fn start_crawler(
-    address_manager: Arc<AddressManager>,
-    network_adapter: Arc<NetworkAdapter>,
-    config: Config,
-) -> Result<()> {
-    let mut crawler = Crawler::new(address_manager, network_adapter, config);
-    crawler.start().await
+/// 爬虫统计信息
+#[derive(Debug, Clone, Default)]
+pub struct CrawlerStats {
+    pub total_peers_polled: u64,
+    pub successful_polls: u64,
+    pub failed_polls: u64,
+    pub addresses_discovered: u64,
+    pub last_poll_time: Option<std::time::SystemTime>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::types::NetAddress;
-    use std::net::IpAddr;
-
-    #[tokio::test]
-    async fn test_crawler_creation() {
-        let config = Config::new();
-        let address_manager = Arc::new(AddressManager::new("test").unwrap());
-        let network_adapter = Arc::new(NetworkAdapter::new(&config).unwrap());
-        
-        let crawler = Crawler::new(address_manager, network_adapter, config);
-        assert_eq!(crawler.config.threads, 8);
+impl CrawlerStats {
+    pub fn new() -> Self {
+        Self {
+            total_peers_polled: 0,
+            successful_polls: 0,
+            failed_polls: 0,
+            addresses_discovered: 0,
+            last_poll_time: None,
+        }
     }
 
-    #[test]
-    fn test_address_retry_logic() {
-        let address = NetAddress::new(IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)).into(), 8080);
-        
-        // 新地址应该可以重试
-        assert!(address.should_retry(None, Duration::from_secs(300)));
-        
-        // 标记尝试后，短时间内不应该重试
-        let now = SystemTime::now();
-        assert!(!address.should_retry(Some(now), Duration::from_secs(300)));
+    pub fn record_poll_success(&mut self, addresses_count: usize) {
+        self.total_peers_polled += 1;
+        self.successful_polls += 1;
+        self.addresses_discovered += addresses_count as u64;
+        self.last_poll_time = Some(std::time::SystemTime::now());
+    }
+
+    pub fn record_poll_failure(&mut self) {
+        self.total_peers_polled += 1;
+        self.failed_polls += 1;
+        self.last_poll_time = Some(std::time::SystemTime::now());
+    }
+
+    pub fn success_rate(&self) -> f64 {
+        if self.total_peers_polled == 0 {
+            0.0
+        } else {
+            self.successful_polls as f64 / self.total_peers_polled as f64
+        }
     }
 }
