@@ -4715,3 +4715,14 @@
 2025-08-21T09:18:02.073498092Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::manager: src/manager.rs:272: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
 2025-08-21T09:18:11.850600403Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:204: Batch completed: 0 peers, 0 successful, 0 failed, took 15.329µs
 2025-08-21T09:18:17.717182754Z  WARN tokio-runtime-worker ThreadId(22) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:43: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known
+2025-08-21T09:22:24.124720256Z  INFO main ThreadId(01) dnsseeder: src/main.rs:235: Version 0.1.0
+2025-08-21T09:22:24.124741633Z  INFO main ThreadId(01) dnsseeder: src/main.rs:247: Created application directory: ./test_data/mainnet
+2025-08-21T09:22:24.124815159Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:335: 0 nodes loaded
+2025-08-21T09:22:24.124869999Z  INFO main ThreadId(01) dnsseeder: src/main.rs:310: Waiting for interrupt signal...
+2025-08-21T09:22:24.12488429Z  INFO tokio-runtime-worker ThreadId(14) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:22:24.124891968Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:22:24.124915876Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::grpc: src/grpc.rs:37: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:22:24.124918268Z  INFO tokio-runtime-worker ThreadId(17) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:22:24.125011047Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:75: Profiling server listening on 0.0.0.0:8080
+2025-08-21T09:22:24.126061728Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::manager: src/manager.rs:286: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:22:39.713637613Z  WARN tokio-runtime-worker ThreadId(17) dnsseeder::dns_seed_discovery: src/dns_seed_discovery.rs:58: Error connecting to DNS seeder mainnet-dnsseed-1.kaspanet.org: failed to lookup address information: Name or service not known

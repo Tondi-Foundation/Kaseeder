@@ -355,7 +355,7 @@ impl AddressManager {
     fn is_stale(&self, node: &Node) -> bool {
         let now = SystemTime::now();
         let last_attempt_elapsed = now.duration_since(node.last_attempt).unwrap_or_default();
-        let last_success_elapsed = now.duration_since(node.last_success).unwrap_or_default();
+        let _last_success_elapsed = now.duration_since(node.last_success).unwrap_or_default();
 
         (!node.last_success.eq(&UNIX_EPOCH) && last_attempt_elapsed > DEFAULT_STALE_GOOD_TIMEOUT)
             || last_attempt_elapsed > DEFAULT_STALE_BAD_TIMEOUT
