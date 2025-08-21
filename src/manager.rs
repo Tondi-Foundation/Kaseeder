@@ -126,6 +126,15 @@ impl AddressManager {
             }
 
             let node = entry.value();
+            
+            // 优先处理新节点（从未成功连接的节点）
+            if node.last_success.eq(&UNIX_EPOCH) {
+                addresses.push(node.address.clone());
+                count += 1;
+                continue;
+            }
+            
+            // 然后处理过期的节点
             if self.is_stale(node) {
                 addresses.push(node.address.clone());
                 count += 1;
@@ -360,6 +369,10 @@ impl AddressManager {
         // 对于从未成功连接的节点（新节点），如果从未尝试过或尝试时间超过较短阈值，则认为是过期的
         if node.last_success.eq(&UNIX_EPOCH) {
             // 新节点：如果从未尝试过，或者尝试时间超过新节点轮询间隔，则认为是过期的
+            // 但是，如果这是第一次尝试（last_attempt == last_seen），则立即认为是过期的
+            if node.last_attempt == node.last_seen {
+                return true; // 新节点立即被认为是过期的，可以被轮询
+            }
             return last_attempt_elapsed > NEW_NODE_POLL_INTERVAL;
         }
 
