@@ -133,9 +133,11 @@ impl Crawler {
             let batch_size = (self.config.threads as usize).max(20).min(50);
             let peers = self.address_manager.addresses(batch_size as u8);
 
-            if peers.is_empty() && self.address_manager.address_count() == 0 {
+            if peers.is_empty() {
                 // 如果没有地址，尝试从 DNS 发现种子节点
-                self.seed_from_dns().await?;
+                if self.address_manager.address_count() == 0 {
+                    self.seed_from_dns().await?;
+                }
 
                 // 再次获取地址
                 let peers = self.address_manager.addresses(batch_size as u8);
