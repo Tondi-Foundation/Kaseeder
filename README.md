@@ -404,24 +404,3 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ## License
 
 This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-- **Documentation:** [Wiki](https://github.com/your-org/dnsseeder/wiki)
-- **Issues:** [GitHub Issues](https://github.com/your-org/dnsseeder/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/your-org/dnsseeder/discussions)
-- **Email:** support@your-org.com
-
-## Acknowledgments
-
-- Kaspa development team for protocol specifications
-- Rust community for excellent tooling and ecosystem
-- Contributors and maintainers of this project
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
-
----
-
-**Note:** This DNS seeder is designed for production use in the Kaspa network. Please ensure you have proper network access and follow security best practices when deploying.

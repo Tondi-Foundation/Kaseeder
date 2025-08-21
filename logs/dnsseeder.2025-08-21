@@ -4756,3 +4756,43 @@
 2025-08-21T09:29:43.858946036Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 24.034µs
 2025-08-21T09:30:03.860468832Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 21.263µs
 2025-08-21T09:30:23.861031158Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 17.35µs
+2025-08-21T09:30:43.862062825Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 13.532µs
+2025-08-21T09:31:03.863284529Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 21.427µs
+2025-08-21T09:31:23.864388015Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 14.8µs
+2025-08-21T09:31:43.864849784Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 14.906µs
+2025-08-21T09:32:03.866025718Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 14.722µs
+2025-08-21T09:32:23.867297846Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 23.429µs
+2025-08-21T09:32:43.868426261Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 16.121µs
+2025-08-21T09:33:03.869108579Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 16.526µs
+2025-08-21T09:33:23.869950803Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 15.781µs
+2025-08-21T09:33:43.871114882Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 17.976µs
+2025-08-21T09:34:03.872063751Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 15.537µs
+2025-08-21T09:34:23.873698897Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 21.063µs
+2025-08-21T09:34:43.87506875Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 15.131µs
+2025-08-21T09:35:03.876221849Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 14.121µs
+2025-08-21T09:35:23.876946106Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 13.487µs
+2025-08-21T09:35:43.877876048Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 13.631µs
+2025-08-21T09:36:03.879438169Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 14.999µs
+2025-08-21T09:36:23.879845436Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 14.083µs
+2025-08-21T09:36:43.880869699Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 16.333µs
+2025-08-21T09:37:03.882003977Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 16.323µs
+2025-08-21T09:37:59.057276875Z  INFO main ThreadId(01) dnsseeder: src/main.rs:235: Version 0.1.0
+2025-08-21T09:37:59.057295745Z  INFO main ThreadId(01) dnsseeder: src/main.rs:247: Created application directory: ./test_data/mainnet
+2025-08-21T09:37:59.057363023Z  INFO main ThreadId(01) dnsseeder::manager: src/manager.rs:335: 0 nodes loaded
+2025-08-21T09:37:59.057416566Z  INFO                 main ThreadId(01) dnsseeder: src/main.rs:310: Waiting for interrupt signal...
+2025-08-21T09:37:59.057419516Z  INFO tokio-runtime-worker ThreadId(02) dnsseeder::manager: src/manager.rs:286: Known nodes: Good:0 [4:0, 6:0] Stale:0 Bad:0
+2025-08-21T09:37:59.057426813Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:62: Profiling server started on port 8080
+2025-08-21T09:37:59.057439497Z  INFO tokio-runtime-worker ThreadId(22) dnsseeder::dns: src/dns.rs:40: Starting DNS server on 127.0.0.1:5354
+2025-08-21T09:37:59.057447026Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:75: Starting crawler with 2 threads
+2025-08-21T09:37:59.057450248Z  INFO tokio-runtime-worker ThreadId(23) dnsseeder::grpc: src/grpc.rs:37: Starting gRPC server on 127.0.0.1:3737
+2025-08-21T09:37:59.057537726Z  INFO tokio-runtime-worker ThreadId(25) dnsseeder::profiling: src/profiling.rs:75: Profiling server listening on 0.0.0.0:8080
+2025-08-21T09:37:59.07921519Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:241: Discovered 28 addresses from DNS seed server: seeder1.kaspad.net
+2025-08-21T09:37:59.09578024Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:241: Discovered 28 addresses from DNS seed server: seeder2.kaspad.net
+2025-08-21T09:37:59.111483783Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:241: Discovered 28 addresses from DNS seed server: seeder3.kaspad.net
+2025-08-21T09:37:59.128148883Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:241: Discovered 28 addresses from DNS seed server: seeder4.kaspad.net
+2025-08-21T09:37:59.140930231Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:241: Discovered 17 addresses from DNS seed server: kaspadns.kaspacalc.net
+2025-08-21T09:37:59.156193856Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:241: Discovered 17 addresses from DNS seed server: n-mainnet.kaspa.ws
+2025-08-21T09:37:59.169139709Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:241: Discovered 17 addresses from DNS seed server: dnsseeder-kaspa-mainnet.x-con.at
+2025-08-21T09:37:59.169236456Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:262: Added 93 addresses from DNS seed discovery
+2025-08-21T09:38:09.169902558Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 16.206µs
+2025-08-21T09:38:29.170987446Z  INFO tokio-runtime-worker ThreadId(21) dnsseeder::crawler: src/crawler.rs:208: Batch completed: 0 peers, 0 successful, 0 failed, took 24.293µs
