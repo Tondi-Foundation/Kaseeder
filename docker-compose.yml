@@ -6,9 +6,9 @@ services:
     container_name: dnsseeder
     restart: unless-stopped
     ports:
-      - "5354:5354"  # DNS服务端口
-      - "3737:3737"  # gRPC/HTTP API端口
-      - "8080:8080"  # 性能分析端口（可选）
+      - "5354:5354"  # DNS service port
+      - "3737:3737"  # gRPC/HTTP API port
+      - "8080:8080"  # Profiling port (optional)
     volumes:
       - dnsseeder_data:/app/data
       - dnsseeder_logs:/app/logs
@@ -33,13 +33,13 @@ services:
       retries: 3
       start_period: 40s
 
-  # 测试网版本（可选）
+  # Testnet version (optional)
   dnsseeder-testnet:
     build: .
     container_name: dnsseeder-testnet
     restart: unless-stopped
     ports:
-      - "5355:5354"  # 使用不同端口避免冲突
+      - "5355:5354"  # Use different port to avoid conflicts
       - "3738:3737"
       - "8081:8080"
     volumes:

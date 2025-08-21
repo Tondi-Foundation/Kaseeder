@@ -2,27 +2,27 @@ syntax = "proto3";
 
 package dnsseeder;
 
-// DNS 种子服务定义
+// DNS seeder service definition
 service DnsSeederService {
-    // 获取地址列表
+    // Get address list
     rpc GetAddresses(GetAddressesRequest) returns (GetAddressesResponse);
     
-    // 获取统计信息
+    // Get statistics
     rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
     
-    // 获取地址统计
+    // Get address statistics
     rpc GetAddressStats(GetAddressStatsRequest) returns (GetAddressStatsResponse);
     
-    // 健康检查
+    // Health check
     rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
 }
 
-// 请求消息
+// Request message
 message GetAddressesRequest {
-    uint32 limit = 1;           // 返回地址数量限制
-    bool include_ipv4 = 2;      // 是否包含IPv4地址
-    bool include_ipv6 = 3;      // 是否包含IPv6地址
-    string subnetwork_id = 4;   // 可选的子网络ID过滤
+    uint32 limit = 1;           // Limit on number of addresses to return
+    bool include_ipv4 = 2;      // Whether to include IPv4 addresses
+    bool include_ipv6 = 3;      // Whether to include IPv6 addresses
+    string subnetwork_id = 4;   // Optional subnetwork ID filter
 }
 
 message GetStatsRequest {}
@@ -31,7 +31,7 @@ message GetAddressStatsRequest {}
 
 message HealthCheckRequest {}
 
-// 响应消息
+// Response message
 message GetAddressesResponse {
     repeated NetAddress addresses = 1;
     uint64 total_count = 2;
@@ -65,7 +65,7 @@ message HealthCheckResponse {
     string message = 2;
 }
 
-// 数据类型
+// Data types
 message NetAddress {
     string ip = 1;
     uint32 port = 2;

@@ -1,66 +1,66 @@
-# 多阶段构建Dockerfile
+# Multi-stage build Dockerfile
 FROM rust:1.70-slim as builder
 
-# 安装构建依赖
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 设置工作目录
+# Set working directory
 WORKDIR /usr/src/dnsseeder
 
-# 复制Cargo文件
+# Copy Cargo files
 COPY Cargo.toml Cargo.lock ./
 
-# 创建虚拟目标以缓存依赖
+# Create virtual target to cache dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release
 RUN rm -rf src
 
-# 复制源代码
+# Copy source code
 COPY src ./src
 
-# 构建应用
+# Build application
 RUN cargo build --release
 
-# 运行时镜像
+# Runtime image
 FROM debian:bullseye-slim
 
-# 安装运行时依赖
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl1.1 \
     && rm -rf /var/lib/apt/lists/*
 
-# 创建非root用户
+# Create non-root user
 RUN groupadd -r dnsseeder && useradd -r -g dnsseeder dnsseeder
 
-# 创建必要的目录
+# Create necessary directories
 RUN mkdir -p /app/data /app/logs && \
     chown -R dnsseeder:dnsseeder /app
 
-# 复制二进制文件
+# Copy binary file
 COPY --from=builder /usr/src/dnsseeder/target/release/dnsseeder /usr/local/bin/
 
-# 设置权限
+# Set permissions
 RUN chmod +x /usr/local/bin/dnsseeder
 
-# 切换到非root用户
+# Switch to non-root user
 USER dnsseeder
 
-# 设置工作目录
+# Set working directory
 WORKDIR /app
 
-# 暴露端口
+# Expose ports
 EXPOSE 5354 3737
 
-# 健康检查
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3737/health || exit 1
 
-# 默认命令
+# Default command
 ENTRYPOINT ["dnsseeder"]
 
-# 默认参数
+# Default arguments
 CMD ["--help"]

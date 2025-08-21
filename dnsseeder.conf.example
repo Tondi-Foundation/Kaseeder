@@ -1,40 +1,40 @@
-# DNSSeeder 配置文件示例
-# 复制此文件为 dnsseeder.conf 并根据需要修改
+# DNSSeeder configuration file example
+# Copy this file to dnsseeder.conf and modify as needed
 
-# DNS 服务器配置
+# DNS server configuration
 host = "seed.kaspa.org"
 nameserver = "ns1.kaspa.org"
 listen = "0.0.0.0:53"
 
-# gRPC 服务器配置
+# gRPC server configuration
 grpc_listen = "0.0.0.0:50051"
 
-# 应用程序配置
+# Application configuration
 app_dir = "./data"
 threads = 8
 
-# 网络配置
+# Network configuration
 testnet = false
 net_suffix = 0
 
-# 种子节点配置
+# Seeder node configuration
 # seeder = "127.0.0.1:16111"
 # known_peers = "192.168.1.100:16111,192.168.1.101:16111"
 
-# 版本要求
+# Version requirements
 min_proto_ver = 0
 # min_ua_ver = "0.12.0"
 
-# 代理配置（可选）
-# 如果不需要代理，请注释掉或删除这些行
+# Proxy configuration (optional)
+# If proxy is not needed, comment out or delete these lines
 proxy_enabled = true
 proxy_url = "http://127.0.0.1:7897"
 proxy_timeout = 5
 
-# 日志配置
+# Logging configuration
 log_level = "info"
 nologfiles = false
 # error_log_file = "logs/dnsseeder_error.log"
 
-# 性能分析
+# Profiling
 # profile = "8080"

@@ -7,52 +7,49 @@ description = "DNS seeder for Kaspa network"
 license = "ISC"
 
 [dependencies]
-# 异步运行时
+# Async runtime
 tokio = { version = "1.0", features = ["full"] }
 
-# 网络和DNS
+# Network and DNS
 trust-dns-server = "0.23"
 trust-dns-proto = "0.23"
 trust-dns-resolver = "0.23"
 
-# 序列化
+# Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.8"
-
-# 日志
+bincode = "1.3"
+# Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
 tracing-appender = "0.2"
 
-# 配置管理
+# Configuration management
 clap = { version = "4.0", features = ["derive"] }
 config = "0.13"
 dirs = "5.0"
 
-# 错误处理
+# Error handling
 anyhow = "1.0"
 thiserror = "1.0"
 
-# 网络协议
+# Network protocols
 tokio-tungstenite = "0.20"
 futures-util = "0.3"
 futures = "0.3"
 
-# 时间处理
+# Time handling
 chrono = { version = "0.4", features = ["serde"] }
 
-# 随机数
+# Random number generation
 rand = "0.8"
 rand_core = "0.6"
 
-# 序列化
-bincode = "1.3"
-
-# 数据库
+# Database
 sled = "0.34"
 
-# HTTP服务器
+# HTTP server
 axum = "0.6"
 tower = "0.4"
 tower-http = { version = "0.4", features = ["cors"] }
@@ -61,19 +58,19 @@ tower-http = { version = "0.4", features = ["cors"] }
 tonic = "0.9"
 prost = "0.11"
 
-# 其他工具
+# Other utilities
 uuid = { version = "1.0", features = ["v4"] }
 dashmap = "5.0"
 async-trait = "0.1"
 once_cell = "1.18"
 
-# HTTP客户端（支持代理）
+# HTTP client (with proxy support)
 reqwest = { version = "0.11", features = ["json", "socks"] }
 
-# 系统信息监控
+# System information monitoring
 sysinfo = "0.29"
 
-# Rusty Kaspa 相关依赖
+# Rusty Kaspa related dependencies
 kaspa-utils = { path = "../rusty-kaspa/utils" }
 kaspa-core = { path = "../rusty-kaspa/core" }
 kaspa-consensus-core = { path = "../rusty-kaspa/consensus/core" }
