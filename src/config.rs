@@ -84,8 +84,8 @@ impl Config {
         Self {
             host: "seed.kaspa.org".to_string(),
             nameserver: "ns1.kaspa.org".to_string(),
-            listen: "0.0.0.0:53".to_string(),
-            grpc_listen: "0.0.0.0:50051".to_string(),
+            listen: "0.0.0.0:5354".to_string(), // Changed from 53 to 5354 for non-privileged access
+            grpc_listen: "0.0.0.0:3737".to_string(), // Changed from 50051 to 3737 for consistency
             app_dir: "./data".to_string(),
             seeder: None,
             known_peers: None,
@@ -283,11 +283,16 @@ impl Config {
 
     /// Validate the configuration
     pub fn validate(&self) -> Result<()> {
+        use crate::constants::*;
+
         // Validate the port number
         if let Some(port_str) = self.listen.split(':').last() {
             if let Ok(port) = port_str.parse::<u16>() {
-                if port == 0 {
-                    return Err(anyhow::anyhow!("Invalid listen port: 0"));
+                if !is_valid_port(port) {
+                    return Err(anyhow::anyhow!(
+                        "Invalid listen port: {} (must be between {} and {})",
+                        port, MIN_PORT, MAX_PORT
+                    ));
                 }
             } else {
                 return Err(anyhow::anyhow!("Invalid listen port: {}", port_str));
@@ -296,8 +301,11 @@ impl Config {
 
         if let Some(port_str) = self.grpc_listen.split(':').last() {
             if let Ok(port) = port_str.parse::<u16>() {
-                if port == 0 {
-                    return Err(anyhow::anyhow!("Invalid gRPC listen port: 0"));
+                if !is_valid_port(port) {
+                    return Err(anyhow::anyhow!(
+                        "Invalid gRPC listen port: {} (must be between {} and {})",
+                        port, MIN_PORT, MAX_PORT
+                    ));
                 }
             } else {
                 return Err(anyhow::anyhow!("Invalid gRPC listen port: {}", port_str));
@@ -305,18 +313,26 @@ impl Config {
         }
 
         // Validate the thread count
-        if self.threads == 0 {
-            return Err(anyhow::anyhow!("Thread count must be greater than 0"));
-        }
-        if self.threads > 64 {
-            return Err(anyhow::anyhow!("Thread count too high: {}", self.threads));
+        if !is_valid_thread_count(self.threads) {
+            return Err(anyhow::anyhow!(
+                "Invalid thread count: {} (must be between {} and {})",
+                self.threads, MIN_THREADS, MAX_THREADS
+            ));
         }
 
         // Validate the network suffix
-        if self.testnet && self.net_suffix > 99 {
+        if self.testnet && !is_valid_network_suffix(self.net_suffix) {
             return Err(anyhow::anyhow!(
-                "Network suffix too high: {}",
-                self.net_suffix
+                "Invalid network suffix: {} (must be between 0 and {})",
+                self.net_suffix, MAX_NETWORK_SUFFIX
+            ));
+        }
+
+        // Validate protocol version
+        if !is_valid_protocol_version(self.min_proto_ver) {
+            return Err(anyhow::anyhow!(
+                "Invalid protocol version: {} (must be between {} and {})",
+                self.min_proto_ver, MIN_PROTOCOL_VERSION, MAX_PROTOCOL_VERSION
             ));
         }
 
@@ -345,6 +361,75 @@ impl Config {
             info!("  Profile Port: {}", profile);
         }
     }
+
+    /// Apply command line overrides to configuration
+    pub fn apply_cli_overrides(&mut self, cli: &CliOverrides) {
+        if let Some(host) = &cli.host {
+            self.host = host.clone();
+        }
+        if let Some(nameserver) = &cli.nameserver {
+            self.nameserver = nameserver.clone();
+        }
+        if let Some(listen) = &cli.listen {
+            self.listen = listen.clone();
+        }
+        if let Some(grpc_listen) = &cli.grpc_listen {
+            self.grpc_listen = grpc_listen.clone();
+        }
+        if let Some(app_dir) = &cli.app_dir {
+            self.app_dir = app_dir.clone();
+        }
+        if let Some(seeder) = &cli.seeder {
+            self.seeder = Some(seeder.clone());
+        }
+        if let Some(known_peers) = &cli.known_peers {
+            self.known_peers = Some(known_peers.clone());
+        }
+        if let Some(threads) = cli.threads {
+            self.threads = threads;
+        }
+        if let Some(min_proto_ver) = cli.min_proto_ver {
+            self.min_proto_ver = min_proto_ver;
+        }
+        if let Some(min_ua_ver) = &cli.min_ua_ver {
+            self.min_ua_ver = Some(min_ua_ver.clone());
+        }
+        if let Some(testnet) = cli.testnet {
+            self.testnet = testnet;
+        }
+        if let Some(net_suffix) = cli.net_suffix {
+            self.net_suffix = net_suffix;
+        }
+        if let Some(log_level) = &cli.log_level {
+            self.log_level = log_level.clone();
+        }
+        if let Some(nologfiles) = cli.nologfiles {
+            self.nologfiles = nologfiles;
+        }
+        if let Some(profile) = &cli.profile {
+            self.profile = Some(profile.clone());
+        }
+    }
+}
+
+/// Command line overrides structure
+#[derive(Debug, Clone, Default)]
+pub struct CliOverrides {
+    pub host: Option<String>,
+    pub nameserver: Option<String>,
+    pub listen: Option<String>,
+    pub grpc_listen: Option<String>,
+    pub app_dir: Option<String>,
+    pub seeder: Option<String>,
+    pub known_peers: Option<String>,
+    pub threads: Option<u8>,
+    pub min_proto_ver: Option<u16>,
+    pub min_ua_ver: Option<String>,
+    pub testnet: Option<bool>,
+    pub net_suffix: Option<u16>,
+    pub log_level: Option<String>,
+    pub nologfiles: Option<bool>,
+    pub profile: Option<String>,
 }
 
 impl Default for Config {
@@ -365,6 +450,8 @@ mod tests {
         assert_eq!(config.host, "seed.kaspa.org");
         assert_eq!(config.threads, 8);
         assert!(!config.testnet);
+        assert_eq!(config.listen, "0.0.0.0:5354");
+        assert_eq!(config.grpc_listen, "0.0.0.0:3737");
     }
 
     #[test]
@@ -424,5 +511,21 @@ mod tests {
         assert_eq!(reloaded_config.host, "test.kaspa.org");
 
         Ok(())
+    }
+
+    #[test]
+    fn test_cli_overrides() {
+        let mut config = Config::new();
+        let overrides = CliOverrides {
+            host: Some("test.kaspa.org".to_string()),
+            threads: Some(16),
+            testnet: Some(true),
+            ..Default::default()
+        };
+
+        config.apply_cli_overrides(&overrides);
+        assert_eq!(config.host, "test.kaspa.org");
+        assert_eq!(config.threads, 16);
+        assert!(config.testnet);
     }
 }

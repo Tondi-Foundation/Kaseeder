@@ -1,40 +1,48 @@
-# kaseeder configuration file example
+# Kaseeder Configuration File
 # Copy this file to kaseeder.conf and modify as needed
 
-# DNS server configuration
+# DNS Server Configuration
 host = "seed.kaspa.org"
 nameserver = "ns1.kaspa.org"
-listen = "0.0.0.0:53"
+listen = "0.0.0.0:5354"  # Changed from 53 to 5354 for non-privileged access
 
-# gRPC server configuration
-grpc_listen = "0.0.0.0:50051"
+# gRPC Server Configuration
+grpc_listen = "0.0.0.0:3737"  # Changed from 50051 to 3737 for consistency
 
-# Application configuration
+# Application Configuration
 app_dir = "./data"
 threads = 8
+log_level = "info"
+nologfiles = false
+error_log_file = "logs/kaseeder_error.log"
 
-# Network configuration
+# Network Configuration
 testnet = false
 net_suffix = 0
 
-# Seeder node configuration
-# seeder = "127.0.0.1:16111"
-# known_peers = "192.168.1.100:16111,192.168.1.101:16111"
-
-# Version requirements
+# Protocol Configuration
 min_proto_ver = 0
-# min_ua_ver = "0.12.0"
+min_ua_ver = null  # Set to version string if you want to filter by user agent
 
-# Proxy configuration (optional)
-# If proxy is not needed, comment out or delete these lines
-proxy_enabled = true
-proxy_url = "http://127.0.0.1:7897"
-proxy_timeout = 5
+# Seed Node Configuration
+seeder = null  # Set to "IP:PORT" or just "IP" for seed node
+known_peers = null  # Comma-separated list of known peer addresses
 
-# Logging configuration
-log_level = "info"
-nologfiles = false
-# error_log_file = "logs/kaseeder_error.log"
+# Performance Monitoring
+profile = null  # Set to port number to enable profiling server
 
-# Profiling
-# profile = "8080"
+# Example configurations for different environments:
+
+# Mainnet with custom settings:
+# host = "seed.mykaspa.org"
+# nameserver = "ns1.mykaspa.org"
+# threads = 16
+# seeder = "192.168.1.100:16111"
+
+# Testnet configuration:
+# testnet = true
+# net_suffix = 1
+# listen = "0.0.0.0:5354"
+# grpc_listen = "0.0.0.0:3737"
+# seeder = "192.168.1.100:16110"
+# threads = 4

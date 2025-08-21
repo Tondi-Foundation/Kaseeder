@@ -6,8 +6,8 @@ services:
     container_name: kaseeder
     restart: unless-stopped
     ports:
-      - "5354:5354"  # DNS service port
-      - "3737:3737"  # gRPC/HTTP API port
+      - "5354:5354"  # DNS service port (new default)
+      - "3737:3737"  # gRPC/HTTP API port (new default)
       - "8080:8080"  # Profiling port (optional)
     volumes:
       - kaseeder_data:/app/data
@@ -15,15 +15,15 @@ services:
     environment:
       - RUST_LOG=kaseeder=info
     command: >
-      -H seed.example.com
-      -n ns.example.com
-      -s 127.0.0.1:16111
+      --host seed.example.com
+      --nameserver ns.example.com
+      --seeder 127.0.0.1:16111
       --listen 0.0.0.0:5354
-      --grpclisten 0.0.0.0:3737
+      --grpc-listen 0.0.0.0:3737
       --profile 8080
       --threads 8
-      --loglevel info
-      --appdir /app/data
+      --log-level info
+      --app-dir /app/data
     networks:
       - kaseeder_net
     healthcheck:
@@ -48,17 +48,17 @@ services:
     environment:
       - RUST_LOG=kaseeder=info
     command: >
-      -H seed-testnet.example.com
-      -n ns-testnet.example.com
-      -s 127.0.0.1:16110
+      --host seed-testnet.example.com
+      --nameserver ns-testnet.example.com
+      --seeder 127.0.0.1:16110
       --testnet
-      --netsuffix 1
+      --net-suffix 1
       --listen 0.0.0.0:5354
-      --grpclisten 0.0.0.0:3737
+      --grpc-listen 0.0.0.0:3737
       --profile 8080
       --threads 4
-      --loglevel info
-      --appdir /app/data
+      --log-level info
+      --app-dir /app/data
     networks:
       - kaseeder_net
     profiles:

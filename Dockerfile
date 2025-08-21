@@ -1,5 +1,5 @@
 # Multi-stage build Dockerfile
-FROM rust:1.70-slim as builder
+FROM rust:1.75-slim as builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -31,6 +31,7 @@ FROM debian:bullseye-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl1.1 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -52,15 +53,15 @@ USER kaseeder
 # Set working directory
 WORKDIR /app
 
-# Expose ports
-EXPOSE 5354 3737
+# Expose ports - using the new default ports from config
+EXPOSE 5354 3737 8080
 
-# Health check
+# Health check - using the correct gRPC port
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3737/health || exit 1
 
 # Default command
 ENTRYPOINT ["kaseeder"]
 
-# Default arguments
+# Default arguments - using the new default ports
 CMD ["--help"]

@@ -5,6 +5,7 @@ pub mod crawler;
 pub mod dns;
 pub mod dns_seed_config;
 pub mod dns_seed_discovery;
+pub mod errors;
 pub mod grpc;
 pub mod kaspa_protocol;
 pub mod logging;
@@ -17,5 +18,6 @@ pub mod version;
 
 pub use config::Config;
 pub use constants::*;
+pub use errors::{KaseederError, Result};
 pub use kaspa_protocol::*;
 pub use types::*;
