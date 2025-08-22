@@ -69,6 +69,18 @@ pub enum KaseederError {
 
     #[error("Resource exhausted: {0}")]
     ResourceExhausted(String),
+
+    #[error("Network timeout: {0}")]
+    NetworkTimeout(String),
+
+    #[error("Peer unavailable: {0}")]
+    PeerUnavailable(String),
+
+    #[error("Protocol version mismatch: {0}")]
+    ProtocolVersionMismatch(String),
+
+    #[error("Service unavailable: {0}")]
+    ServiceUnavailable(String),
 }
 
 /// Result type for the application

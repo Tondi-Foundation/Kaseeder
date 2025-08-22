@@ -187,10 +187,10 @@ impl DnsseedNetAdapter {
     ) -> Result<(VersionMessage, Vec<NetAddress>)> {
         info!("Connecting to peer: {}", address);
 
-        // Implement exponential backoff reconnection strategy
+        // Implement exponential backoff reconnection strategy with longer timeouts
         let mut retry_count = 0;
-        let max_retries = 3;
-        let base_delay = Duration::from_secs(1);
+        let max_retries = 5;  // Increased from 3 to 5
+        let base_delay = Duration::from_secs(2);  // Increased from 1 to 2 seconds
 
         loop {
             match self.try_connect_peer(address).await {
@@ -228,17 +228,17 @@ impl DnsseedNetAdapter {
         &self,
         address: &str,
     ) -> Result<(PeerKey, VersionMessage, Vec<NetAddress>)> {
-        // Connect to peer node
+        // Connect to peer node with increased timeout
         let peer_key = self
             .adaptor
             .connect_peer_with_retries(
                 address.to_string(),
                 1,                      // Single connection attempt
-                Duration::from_secs(5), // Connection timeout 5 seconds
+                Duration::from_secs(10), // Increased connection timeout from 5 to 10 seconds
             )
             .await
             .map_err(|e| {
-                // Classify error types
+                // Enhanced error classification for better debugging
                 match e {
                     kaspa_p2p_lib::ConnectionError::ProtocolError(_) => {
                         KaseederError::Protocol(format!("Protocol error connecting to {}: {}", address, e))
@@ -255,7 +255,7 @@ impl DnsseedNetAdapter {
                 }
             })?;
 
-        // Wait for address response with timeout
+        // Wait for address response with increased timeout
         let addresses = self.wait_for_addresses_with_timeout(peer_key).await?;
 
         // Get peer node information (including version information)
@@ -267,7 +267,7 @@ impl DnsseedNetAdapter {
         Ok((peer_key, version_message, addresses))
     }
 
-    /// Wait for address response with timeout
+    /// Wait for address response with increased timeout
     async fn wait_for_addresses_with_timeout(&self, peer_key: PeerKey) -> Result<Vec<NetAddress>> {
         let mut addresses_rx = self.addresses_rx.lock().await;
 
@@ -284,7 +284,7 @@ impl DnsseedNetAdapter {
                     }
                 }
             }
-            _ = tokio::time::sleep(Duration::from_secs(30)) => {
+            _ = tokio::time::sleep(Duration::from_secs(45)) => {  // Increased from 30 to 45 seconds
                 warn!("Timeout waiting for addresses from peer {}", peer_key);
                 Ok(Vec::new())
             }
@@ -385,6 +385,47 @@ impl DnsseedNetAdapter {
         }
 
         Ok(())
+    }
+
+    /// Diagnostic method to test network connectivity
+    pub async fn diagnose_connection(&self, address: &str) -> Result<String> {
+        info!("Diagnosing connection to: {}", address);
+        
+        // Test basic connectivity first
+        let start_time = std::time::Instant::now();
+        
+        match self.try_connect_peer(address).await {
+            Ok((peer_key, _, addresses)) => {
+                let duration = start_time.elapsed();
+                let result = format!(
+                    "✅ Connection successful to {} (key: {}) in {:?}. Received {} addresses.",
+                    address, peer_key, duration, addresses.len()
+                );
+                info!("{}", result);
+                
+                // Clean up
+                self.adaptor.terminate(peer_key).await;
+                Ok(result)
+            }
+            Err(e) => {
+                let duration = start_time.elapsed();
+                let error_msg = format!(
+                    "❌ Connection failed to {} after {:?}: {}",
+                    address, duration, e
+                );
+                warn!("{}", error_msg);
+                
+                // Provide specific error analysis
+                let analysis = match e {
+                    KaseederError::Protocol(_) => "Protocol compatibility issue - node may be running different version",
+                    KaseederError::Io(_) => "Network I/O error - check firewall, routing, or node availability",
+                    KaseederError::ConnectionFailed(_) => "General connection failure - node may be offline or overloaded",
+                    _ => "Unknown error type"
+                };
+                
+                Ok(format!("{} | Analysis: {}", error_msg, analysis))
+            }
+        }
     }
 }
 

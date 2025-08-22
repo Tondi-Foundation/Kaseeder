@@ -21,6 +21,11 @@ struct Cli {
     /// Configuration file path
     #[arg(short, long)]
     config: Option<String>,
+    
+    /// Diagnose connection to specific peer address (e.g., 192.168.1.1:16110)
+    #[arg(short, long)]
+    diagnose: Option<String>,
+    
     /// Hostname for DNS server
     #[arg(long)]
     host: Option<String>,
@@ -130,6 +135,9 @@ async fn main() -> Result<()> {
         Config::try_load_default()?
     };
 
+    // Get diagnose address before moving cli
+    let diagnose_address = cli.diagnose.clone();
+
     // Apply CLI overrides
     let config = config.with_cli_overrides(cli.into())?;
 
@@ -138,6 +146,23 @@ async fn main() -> Result<()> {
 
     // Validate configuration
     config.validate()?;
+
+    // Handle diagnose command if specified
+    if let Some(address) = &diagnose_address {
+        info!("Running network diagnosis for address: {}", address);
+        
+        // Create consensus configuration for diagnosis
+        let consensus_config = create_consensus_config(config.testnet, config.net_suffix);
+        
+        // Create network adapter for diagnosis
+        let net_adapter = kaseeder::netadapter::DnsseedNetAdapter::new(consensus_config)?;
+        
+        // Run diagnosis
+        let result = net_adapter.diagnose_connection(address).await?;
+        
+        println!("{}", result);
+        return Ok(());
+    }
 
     // Create consensus configuration
     let consensus_config = create_consensus_config(config.testnet, config.net_suffix);
