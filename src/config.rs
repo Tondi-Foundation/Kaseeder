@@ -42,7 +42,7 @@ pub struct ConfigFile {
     pub error_log_file: Option<String>,
     pub profile: Option<String>,
     // Additional fields from Go version
-    pub peers: Option<String>, // Alias for known_peers
+    pub peers: Option<String>,          // Alias for known_peers
     pub default_seeder: Option<String>, // Alias for seeder
 }
 
@@ -83,10 +83,10 @@ pub struct Config {
     pub profile: Option<String>,
     /// Logging configuration
     pub logging: LoggingConfig,
-    
+
     /// Performance monitoring configuration
     pub monitoring: MonitoringConfig,
-    
+
     /// Advanced logging configuration with rotation support
     pub advanced_logging: AdvancedLoggingConfig,
 }
@@ -152,14 +152,7 @@ impl Config {
             });
         }
 
-        // Validate protocol version
-        if self.min_proto_ver > 65535 {
-            return Err(KaseederError::InvalidConfigValue {
-                field: "min_proto_ver".to_string(),
-                value: self.min_proto_ver.to_string(),
-                expected: "0-65535".to_string(),
-            });
-        }
+        // Protocol version validation is implicit for u16 (0-65535)
 
         // Validate testnet suffix (aligned with Go version: only support testnet-11)
         if self.testnet && self.net_suffix != 0 {
@@ -204,13 +197,12 @@ impl Config {
 
     /// Validate socket address format
     fn validate_socket_addr(&self, addr: &str, field: &str) -> Result<()> {
-        addr.parse::<SocketAddr>().map_err(|_| {
-            KaseederError::InvalidConfigValue {
+        addr.parse::<SocketAddr>()
+            .map_err(|_| KaseederError::InvalidConfigValue {
                 field: field.to_string(),
                 value: addr.to_string(),
                 expected: "valid socket address (IP:port)".to_string(),
-            }
-        })?;
+            })?;
         Ok(())
     }
 
@@ -220,29 +212,29 @@ impl Config {
         if let Ok(_) = addr.parse::<IpAddr>() {
             return Ok(());
         }
-        
+
         // If that fails, check if it's IP:port format
         if addr.contains(':') {
             // Try to parse as socket address
             if let Ok(_) = addr.parse::<SocketAddr>() {
                 return Ok(());
             }
-            
+
             // If socket address parsing fails, try to parse as hostname:port
             let parts: Vec<&str> = addr.split(':').collect();
             if parts.len() == 2 {
                 let hostname = parts[0];
                 let port = parts[1];
-                
+
                 // Validate port
                 self.validate_port(port, field)?;
-                
+
                 // For hostname validation, we'll be lenient and accept any non-empty string
                 if !hostname.is_empty() {
                     return Ok(());
                 }
             }
-            
+
             return Err(KaseederError::InvalidConfigValue {
                 field: field.to_string(),
                 value: addr.to_string(),
@@ -251,14 +243,17 @@ impl Config {
         } else {
             // Just hostname format (no port) - only accept if it looks like a valid hostname
             // Basic hostname validation: must contain at least one dot and valid characters
-            if !addr.is_empty() && 
-               addr.contains('.') && 
-               addr.chars().all(|c| c.is_alphanumeric() || c == '.' || c == '-') &&
-               !addr.starts_with('.') && 
-               !addr.ends_with('.') {
+            if !addr.is_empty()
+                && addr.contains('.')
+                && addr
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '.' || c == '-')
+                && !addr.starts_with('.')
+                && !addr.ends_with('.')
+            {
                 return Ok(());
             }
-            
+
             return Err(KaseederError::InvalidConfigValue {
                 field: field.to_string(),
                 value: addr.to_string(),
@@ -269,13 +264,13 @@ impl Config {
 
     /// Validate port number
     fn validate_port(&self, port: &str, field: &str) -> Result<()> {
-        let port_num: u16 = port.parse().map_err(|_| {
-            KaseederError::InvalidConfigValue {
+        let port_num: u16 = port
+            .parse()
+            .map_err(|_| KaseederError::InvalidConfigValue {
                 field: field.to_string(),
                 value: port.to_string(),
                 expected: "valid port number (1-65535)".to_string(),
-            }
-        })?;
+            })?;
 
         if port_num == 0 {
             return Err(KaseederError::InvalidConfigValue {
@@ -290,15 +285,15 @@ impl Config {
 
     /// Validate profile port (aligned with Go version: 1024-65535)
     fn validate_profile_port(&self, port: &str, field: &str) -> Result<()> {
-        let port_num: u16 = port.parse().map_err(|_| {
-            KaseederError::InvalidConfigValue {
+        let port_num: u16 = port
+            .parse()
+            .map_err(|_| KaseederError::InvalidConfigValue {
                 field: field.to_string(),
                 value: port.to_string(),
                 expected: "valid port number (1024-65535)".to_string(),
-            }
-        })?;
+            })?;
 
-        if port_num < 1024 || port_num > 65535 {
+        if port_num < 1024 {
             return Err(KaseederError::InvalidConfigValue {
                 field: field.to_string(),
                 value: port.to_string(),
@@ -350,7 +345,13 @@ impl Config {
     fn validate_advanced_logging(&self) -> Result<()> {
         // Validate rotation strategy
         let valid_strategies = ["daily", "hourly", "size", "hybrid"];
-        if !valid_strategies.contains(&self.advanced_logging.rotation_strategy.to_lowercase().as_str()) {
+        if !valid_strategies.contains(
+            &self
+                .advanced_logging
+                .rotation_strategy
+                .to_lowercase()
+                .as_str(),
+        ) {
             return Err(KaseederError::InvalidConfigValue {
                 field: "advanced_logging.rotation_strategy".to_string(),
                 value: self.advanced_logging.rotation_strategy.clone(),
@@ -368,7 +369,9 @@ impl Config {
         }
 
         // Validate compression level
-        if self.advanced_logging.compression_level < 1 || self.advanced_logging.compression_level > 9 {
+        if self.advanced_logging.compression_level < 1
+            || self.advanced_logging.compression_level > 9
+        {
             return Err(KaseederError::InvalidConfigValue {
                 field: "advanced_logging.compression_level".to_string(),
                 value: self.advanced_logging.compression_level.to_string(),
@@ -404,7 +407,9 @@ impl Config {
         }
 
         // Validate file monitoring interval
-        if self.advanced_logging.enable_file_monitoring && self.advanced_logging.file_monitoring_interval == 0 {
+        if self.advanced_logging.enable_file_monitoring
+            && self.advanced_logging.file_monitoring_interval == 0
+        {
             return Err(KaseederError::InvalidConfigValue {
                 field: "advanced_logging.file_monitoring_interval".to_string(),
                 value: self.advanced_logging.file_monitoring_interval.to_string(),
@@ -441,7 +446,7 @@ impl Config {
 
         // Validate HTTP metrics port if enabled
         if self.monitoring.http_metrics {
-            if self.monitoring.http_metrics_port < 1024 || self.monitoring.http_metrics_port > 65535 {
+            if self.monitoring.http_metrics_port < 1024 {
                 return Err(KaseederError::InvalidConfigValue {
                     field: "monitoring.http_metrics_port".to_string(),
                     value: self.monitoring.http_metrics_port.to_string(),
@@ -457,7 +462,7 @@ impl Config {
     pub fn load_from_file(path: &str) -> Result<Self> {
         let config_file = Self::load_config_file(path)?;
         let mut config = Self::new();
-        
+
         // Apply file configuration
         if let Some(host) = config_file.host {
             config.host = host;
@@ -474,7 +479,7 @@ impl Config {
         if let Some(app_dir) = config_file.app_dir {
             config.app_dir = app_dir;
         }
-        
+
         // Handle aliases from Go version
         if let Some(seeder) = config_file.seeder.or(config_file.default_seeder) {
             config.seeder = Some(seeder);
@@ -482,7 +487,7 @@ impl Config {
         if let Some(known_peers) = config_file.known_peers.or(config_file.peers) {
             config.known_peers = Some(known_peers);
         }
-        
+
         if let Some(threads) = config_file.threads {
             config.threads = threads;
         }
@@ -514,7 +519,7 @@ impl Config {
 
         // Validate the final configuration
         config.validate()?;
-        
+
         Ok(config)
     }
 
@@ -524,8 +529,7 @@ impl Config {
             return Err(KaseederError::FileNotFound(path.to_string()));
         }
 
-        let content = fs::read_to_string(path)
-            .map_err(|e| KaseederError::Io(e))?;
+        let content = fs::read_to_string(path).map_err(|e| KaseederError::Io(e))?;
 
         let config: ConfigFile = toml::from_str(&content)
             .map_err(|e| KaseederError::Serialization(format!("TOML parse error: {}", e)))?;
@@ -583,7 +587,7 @@ impl Config {
 
         // Re-validate after applying overrides
         self.validate()?;
-        
+
         Ok(self)
     }
 
@@ -626,8 +630,7 @@ impl Config {
         // Ensure the parent directory exists
         if let Some(parent) = config_path.parent() {
             if !parent.exists() {
-                fs::create_dir_all(parent)
-                    .map_err(|e| KaseederError::Io(e))?;
+                fs::create_dir_all(parent).map_err(|e| KaseederError::Io(e))?;
             }
         }
 
@@ -652,11 +655,11 @@ impl Config {
             default_seeder: None,
         };
 
-        let toml_content = toml::to_string_pretty(&config_file)
-            .map_err(|e| KaseederError::Serialization(format!("TOML serialization error: {}", e)))?;
+        let toml_content = toml::to_string_pretty(&config_file).map_err(|e| {
+            KaseederError::Serialization(format!("TOML serialization error: {}", e))
+        })?;
 
-        fs::write(config_path, toml_content)
-            .map_err(|e| KaseederError::Io(e))?;
+        fs::write(config_path, toml_content).map_err(|e| KaseederError::Io(e))?;
 
         info!("Configuration saved to: {}", config_path.display());
         Ok(())
@@ -679,21 +682,21 @@ impl Config {
 
         for path in &default_paths {
             let expanded_path = if path.starts_with("~/") {
-                let home = dirs::home_dir()
-                    .ok_or_else(|| KaseederError::Config("Could not determine home directory".to_string()))?;
+                let home = dirs::home_dir().ok_or_else(|| {
+                    KaseederError::Config("Could not determine home directory".to_string())
+                })?;
                 home.join(&path[2..])
             } else {
                 path.to_string().into()
             };
 
             if expanded_path.exists() {
-                return Self::load_from_file(
-                    expanded_path.to_str().ok_or_else(|| {
-                        KaseederError::Config(
-                            format!("Invalid Unicode in config path: {:?}", expanded_path)
-                        )
-                    })?
-                );
+                return Self::load_from_file(expanded_path.to_str().ok_or_else(|| {
+                    KaseederError::Config(format!(
+                        "Invalid Unicode in config path: {:?}",
+                        expanded_path
+                    ))
+                })?);
             }
         }
 
@@ -946,27 +949,31 @@ mod tests {
     #[test]
     fn test_address_validation() {
         let config = Config::new();
-        
+
         // Valid addresses
         assert!(config.validate_address("127.0.0.1", "test").is_ok());
         assert!(config.validate_address("127.0.0.1:8080", "test").is_ok());
         assert!(config.validate_address("::1", "test").is_ok());
         assert!(config.validate_address("[::1]:8080", "test").is_ok());
-        
+
         // Invalid addresses
         assert!(config.validate_address("invalid-ip", "test").is_err());
-        assert!(config.validate_address("127.0.0.1:invalid-port", "test").is_err());
+        assert!(
+            config
+                .validate_address("127.0.0.1:invalid-port", "test")
+                .is_err()
+        );
     }
 
     #[test]
     fn test_port_validation() {
         let config = Config::new();
-        
+
         // Valid ports
         assert!(config.validate_port("8080", "test").is_ok());
         assert!(config.validate_port("1", "test").is_ok());
         assert!(config.validate_port("65535", "test").is_ok());
-        
+
         // Invalid ports
         assert!(config.validate_port("0", "test").is_err());
         assert!(config.validate_port("invalid", "test").is_err());
@@ -976,14 +983,14 @@ mod tests {
     #[test]
     fn test_log_level_validation() {
         let config = Config::new();
-        
+
         // Valid log levels
         assert!(config.validate_log_level("trace").is_ok());
         assert!(config.validate_log_level("debug").is_ok());
         assert!(config.validate_log_level("info").is_ok());
         assert!(config.validate_log_level("warn").is_ok());
         assert!(config.validate_log_level("error").is_ok());
-        
+
         // Invalid log levels
         assert!(config.validate_log_level("invalid").is_err());
         assert!(config.validate_log_level("").is_err());

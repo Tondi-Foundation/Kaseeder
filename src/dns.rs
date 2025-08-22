@@ -1,12 +1,12 @@
-use crate::manager::AddressManager;
 use crate::errors::{KaseederError, Result};
+use crate::manager::AddressManager;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::Arc;
-use trust_dns_proto::op::{Message, MessageType, OpCode, ResponseCode};
-use trust_dns_proto::rr::{Name, Record, RecordType, RData};
-use trust_dns_proto::serialize::binary::{BinEncoder, BinEncodable};
 use tracing::{info, warn};
+use trust_dns_proto::op::{Message, MessageType, OpCode, ResponseCode};
+use trust_dns_proto::rr::{Name, RData, Record, RecordType};
+use trust_dns_proto::serialize::binary::{BinEncodable, BinEncoder};
 
 /// DNS server implementation
 pub struct DnsServer {
@@ -30,7 +30,7 @@ impl DnsServer {
         } else {
             hostname
         };
-        
+
         let nameserver = if !nameserver.ends_with('.') {
             format!("{}.", nameserver)
         } else {
@@ -50,7 +50,9 @@ impl DnsServer {
         info!("Starting DNS server on {}", self.listen);
 
         // Parse listen address
-        let socket_addr: SocketAddr = self.listen.parse()
+        let socket_addr: SocketAddr = self
+            .listen
+            .parse()
             .map_err(|_| KaseederError::Dns(format!("Invalid listen address: {}", self.listen)))?;
 
         // Use tokio async UDP socket
@@ -58,10 +60,7 @@ impl DnsServer {
             tokio::net::UdpSocket::bind(&self.listen).await?
         } else {
             // If IPv6 address provided, force IPv4 binding on the same port
-            let ipv4_addr = SocketAddr::new(
-                IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-                socket_addr.port()
-            );
+            let ipv4_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), socket_addr.port());
             tokio::net::UdpSocket::bind(&ipv4_addr).await?
         };
 
@@ -85,16 +84,22 @@ impl DnsServer {
                     let hostname = self.hostname.clone();
                     let nameserver = self.nameserver.clone();
                     let socket_clone = socket.clone();
-                    
+
                     tokio::spawn(async move {
                         if let Ok(response_data) = Self::handle_dns_request_static(
-                            &request_data, 
+                            &request_data,
                             &src_addr,
                             &address_manager,
                             &hostname,
-                            &nameserver
-                        ).await {
-                            info!("Attempting to send {} bytes to {}", response_data.len(), src_addr);
+                            &nameserver,
+                        )
+                        .await
+                        {
+                            info!(
+                                "Attempting to send {} bytes to {}",
+                                response_data.len(),
+                                src_addr
+                            );
                             match socket_clone.send_to(&response_data, src_addr).await {
                                 Ok(sent) => {
                                     info!("Successfully sent {} bytes to {}", sent, src_addr);
@@ -149,7 +154,7 @@ impl DnsServer {
                 return Err(KaseederError::Dns("No query in DNS request".to_string()));
             }
         };
-        
+
         let domain_name = query.name();
         let query_type = query.query_type();
 
@@ -162,10 +167,13 @@ impl DnsServer {
         }
 
         // Extract subnetwork ID (like Go version)
-        let (subnetwork_id, include_all_subnetworks) = Self::extract_subnetwork_id(domain_name, hostname)?;
+        let (subnetwork_id, include_all_subnetworks) =
+            Self::extract_subnetwork_id(domain_name, hostname)?;
 
-        info!("{}: query {} for subnetwork ID {:?}, include_all: {}",
-            src_addr, query_type, subnetwork_id, include_all_subnetworks);
+        info!(
+            "{}: query {} for subnetwork ID {:?}, include_all: {}",
+            src_addr, query_type, subnetwork_id, include_all_subnetworks
+        );
 
         // Build DNS response (like Go version)
         let response_data = Self::build_dns_response(
@@ -176,7 +184,8 @@ impl DnsServer {
             subnetwork_id.as_deref(),
             nameserver,
             address_manager,
-        ).await?;
+        )
+        .await?;
 
         Ok(response_data)
     }
@@ -190,7 +199,7 @@ impl DnsServer {
     /// Extract subnetwork ID from domain name (like Go version)
     fn extract_subnetwork_id(domain_name: &Name, hostname: &str) -> Result<(Option<String>, bool)> {
         let domain_str = domain_name.to_string();
-        
+
         // If it's our exact hostname, include all subnetworks
         if domain_str == hostname {
             return Ok((None, true));
@@ -237,10 +246,26 @@ impl DnsServer {
         // Handle based on query type (like Go version)
         match query_type {
             RecordType::A => {
-                Self::handle_a_query(&mut response, domain_name, include_all_subnetworks, subnetwork_id, nameserver, address_manager).await?;
+                Self::handle_a_query(
+                    &mut response,
+                    domain_name,
+                    include_all_subnetworks,
+                    subnetwork_id,
+                    nameserver,
+                    address_manager,
+                )
+                .await?;
             }
             RecordType::AAAA => {
-                Self::handle_aaaa_query(&mut response, domain_name, include_all_subnetworks, subnetwork_id, nameserver, address_manager).await?;
+                Self::handle_aaaa_query(
+                    &mut response,
+                    domain_name,
+                    include_all_subnetworks,
+                    subnetwork_id,
+                    nameserver,
+                    address_manager,
+                )
+                .await?;
             }
             RecordType::NS => {
                 Self::handle_ns_query(&mut response, domain_name, nameserver).await?;
@@ -256,10 +281,12 @@ impl DnsServer {
         let mut encoder = BinEncoder::new(&mut buffer);
         response.emit(&mut encoder)?;
 
-        info!("Response serialized: {} bytes, {} answers, {} authorities", 
-              buffer.len(), 
-              response.answers().len(), 
-              response.name_servers().len());
+        info!(
+            "Response serialized: {} bytes, {} answers, {} authorities",
+            buffer.len(),
+            response.answers().len(),
+            response.name_servers().len()
+        );
 
         Ok(buffer)
     }
@@ -273,12 +300,11 @@ impl DnsServer {
         nameserver: &str,
         address_manager: &Arc<AddressManager>,
     ) -> Result<()> {
-        let addresses = address_manager
-            .good_addresses(
-                1,    // A record type
-                include_all_subnetworks,
-                subnetwork_id,
-            );
+        let addresses = address_manager.good_addresses(
+            1, // A record type
+            include_all_subnetworks,
+            subnetwork_id,
+        );
 
         info!("Sending {} IPv4 addresses", addresses.len());
 
@@ -315,12 +341,11 @@ impl DnsServer {
         nameserver: &str,
         address_manager: &Arc<AddressManager>,
     ) -> Result<()> {
-        let addresses = address_manager
-            .good_addresses(
-                28,   // AAAA record type
-                include_all_subnetworks,
-                subnetwork_id,
-            );
+        let addresses = address_manager.good_addresses(
+            28, // AAAA record type
+            include_all_subnetworks,
+            subnetwork_id,
+        );
 
         info!("Sending {} IPv6 addresses", addresses.len());
 

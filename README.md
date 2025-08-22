@@ -1,10 +1,10 @@
-# Kaspa DNS Seeder (Rust Version)
+# Kaseeder - Kaspa DNS Seeder in Rust
 
 Kaspa DNS Seeder exposes a list of known peers to any new peer joining the Kaspa network via the DNS protocol. This is the Rust implementation, fully aligned with the Go version with enhanced performance optimizations.
 
-When DNSSeeder is started for the first time, it will connect to the kaspad node specified with the `--seeder` flag and listen for `addr` messages. These messages contain the IPs of all peers known by the node. DNSSeeder will then connect to each of these peers, listen for their `addr` messages, and continue to traverse the network in this fashion. DNSSeeder maintains a list of all known peers and periodically checks that they are online and available. The list is stored on disk in a json file, so on subsequent start ups the kaspad node specified with `--seeder` does not need to be online.
+When Kaseeder is started for the first time, it will connect to the kaspad node specified with the `--seeder` flag and listen for `addr` messages. These messages contain the IPs of all peers known by the node. Kaseeder will then connect to each of these peers, listen for their `addr` messages, and continue to traverse the network in this fashion. Kaseeder maintains a list of all known peers and periodically checks that they are online and available. The list is stored on disk in a json file, so on subsequent start ups the kaspad node specified with `--seeder` does not need to be online.
 
-When DNSSeeder is queried for node information, it responds with details of a random selection of the reliable nodes it knows about.
+When Kaseeder is queried for node information, it responds with details of a random selection of the reliable nodes it knows about.
 
 This project is currently under active development and is in Beta state with production-ready performance optimizations.
 
@@ -204,7 +204,7 @@ Available options:
 
 ### DNS Configuration
 
-To create a working setup where the DNSSeeder can provide IPs to kaspad instances, set the following DNS records:
+To create a working setup where the Kaseeder can provide IPs to kaspad instances, set the following DNS records:
 
 ```
 NAME                        TYPE        VALUE

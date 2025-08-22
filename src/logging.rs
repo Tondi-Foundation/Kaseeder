@@ -4,13 +4,13 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::sync::Mutex;
-use tracing::{error, info, warn, Level};
+use tracing::{Level, error, info, warn};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{
+    EnvFilter, Layer,
     fmt::{self, time::UtcTime},
     layer::SubscriberExt,
     util::SubscriberInitExt,
-    EnvFilter, Layer,
 };
 
 /// Advanced logging configuration with rotation support
@@ -38,7 +38,7 @@ pub struct LoggingConfig {
     pub include_timestamp: bool,
     /// Whether to include file and line information
     pub include_location: bool,
-    
+
     // New log rotation options
     /// Log rotation strategy: "daily", "hourly", "size", "hybrid"
     pub rotation_strategy: String,
@@ -280,23 +280,22 @@ impl StructuredLogger {
         let _max_size_bytes = max_size_mb * 1024 * 1024;
 
         let log_dir = log_path.parent().ok_or_else(|| {
-            crate::errors::KaseederError::Config(
-                format!("Invalid log path: {}", log_path.display())
-            )
+            crate::errors::KaseederError::Config(format!(
+                "Invalid log path: {}",
+                log_path.display()
+            ))
         })?;
-        
-        let log_name = log_path.file_name().unwrap_or_else(|| std::ffi::OsStr::new("kaseeder"));
+
+        let log_name = log_path
+            .file_name()
+            .unwrap_or_else(|| std::ffi::OsStr::new("kaseeder"));
 
         let appender = match strategy {
-            RotationStrategy::Daily => {
-                RollingFileAppender::new(Rotation::DAILY, log_dir, log_name)
-            }
+            RotationStrategy::Daily => RollingFileAppender::new(Rotation::DAILY, log_dir, log_name),
             RotationStrategy::Hourly => {
                 RollingFileAppender::new(Rotation::HOURLY, log_dir, log_name)
             }
-            RotationStrategy::Size => {
-                RollingFileAppender::new(Rotation::NEVER, log_dir, log_name)
-            }
+            RotationStrategy::Size => RollingFileAppender::new(Rotation::NEVER, log_dir, log_name),
             RotationStrategy::Hybrid => {
                 RollingFileAppender::new(Rotation::DAILY, log_dir, log_name)
             }
@@ -423,7 +422,10 @@ impl StructuredLogger {
         // Check log directory
         if !self.config.no_log_files {
             if !Path::new(&self.config.log_dir).exists() {
-                health.add_issue(format!("Log directory does not exist: {}", self.config.log_dir));
+                health.add_issue(format!(
+                    "Log directory does not exist: {}",
+                    self.config.log_dir
+                ));
             }
         }
 
@@ -460,11 +462,11 @@ impl StructuredLogger {
         }
 
         info!("Manual log rotation requested");
-        
+
         // Trigger rotation by creating a new file
         // The RollingFileAppender will handle the actual rotation
         self.clean_old_logs().await?;
-        
+
         // Update statistics
         {
             let mut stats = self.stats.lock().await;
@@ -488,7 +490,7 @@ impl StructuredLogger {
 
         let mut log_files = Vec::new();
         let mut total_size = 0u64;
-        
+
         // Collect log files
         if let Ok(entries) = std::fs::read_dir(log_dir) {
             for entry in entries.flatten() {
@@ -514,7 +516,11 @@ impl StructuredLogger {
             let files_to_remove = log_files.len() - self.config.max_files;
             for (file_path, _, size) in log_files.iter().take(files_to_remove) {
                 if let Err(e) = std::fs::remove_file(file_path) {
-                    warn!("Failed to remove old log file {}: {}", file_path.display(), e);
+                    warn!(
+                        "Failed to remove old log file {}: {}",
+                        file_path.display(),
+                        e
+                    );
                 } else {
                     info!("Removed old log file: {}", file_path.display());
                     total_size -= size;
@@ -545,7 +551,7 @@ impl StructuredLogger {
         // This would require additional dependencies like flate2
         // For now, we'll just log that compression is requested
         info!("Log compression requested (requires flate2 dependency)");
-        
+
         Ok(())
     }
 
@@ -644,7 +650,9 @@ mod tests {
         let mut config = LoggingConfig::default();
         config.log_dir = temp_dir.path().join("logs").to_string_lossy().to_string();
 
-        let logger = StructuredLogger::new(config)?;
+        let mut _logger = StructuredLogger::new(config)?;
+        // Directory is only created when init() is called
+        _logger.init()?;
         assert!(temp_dir.path().join("logs").exists());
 
         Ok(())

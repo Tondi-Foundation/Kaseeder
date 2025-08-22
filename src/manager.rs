@@ -1,20 +1,17 @@
-
 use crate::errors::Result;
 use crate::types::{CrawlerStats, NetAddress};
-use tracing::{error, info};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
+use tracing::{error, info};
 
 // Address manager constants - aligned with Go version
 const PEERS_FILENAME: &str = "peers.json";
 const DEFAULT_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(60 * 60); // 1 hour (same as Go version)
 const DEFAULT_STALE_BAD_TIMEOUT: Duration = Duration::from_secs(2 * 60 * 60); // 2 hours (same as Go version)
-
-
 
 const PRUNE_EXPIRE_TIMEOUT: Duration = Duration::from_secs(8 * 60 * 60); // 8 hours, same as Go version
 const PRUNE_ADDRESS_INTERVAL: Duration = Duration::from_secs(60); // 1 minute (same as Go version)
@@ -63,7 +60,7 @@ impl Node {
     pub fn record_connection_attempt(&mut self, success: bool, error: Option<String>) {
         self.connection_attempts += 1;
         self.last_attempt = SystemTime::now();
-        
+
         if success {
             self.successful_connections += 1;
             self.last_success = SystemTime::now();
@@ -71,7 +68,7 @@ impl Node {
         } else {
             self.last_error = error;
         }
-        
+
         // Update quality score
         self.update_quality_score();
     }
@@ -85,14 +82,15 @@ impl Node {
 
         // Base success rate (0.0 to 1.0)
         let success_rate = self.successful_connections as f32 / self.connection_attempts as f32;
-        
+
         // Time decay factor (recent successes are weighted more)
         let time_factor = if self.last_success > UNIX_EPOCH {
             let hours_since_success = SystemTime::now()
                 .duration_since(self.last_success)
                 .unwrap_or_default()
-                .as_secs() as f32 / 3600.0;
-            
+                .as_secs() as f32
+                / 3600.0;
+
             // Decay over 24 hours
             (1.0 - (hours_since_success / 24.0)).max(0.1)
         } else {
@@ -106,7 +104,7 @@ impl Node {
             1.0
         };
 
-        self.quality_score = (success_rate * time_factor * attempt_penalty).min(1.0).max(0.0);
+        self.quality_score = (success_rate * time_factor * attempt_penalty).clamp(0.0, 1.0);
     }
 
     /// Check if node should be attempted based on quality and timing
@@ -119,15 +117,15 @@ impl Node {
         // Use different intervals for development vs production
         #[cfg(debug_assertions)]
         let (good_interval, medium_interval, poor_interval) = (
-            Duration::from_secs(5),    // 5 seconds for good nodes in dev
-            Duration::from_secs(10),   // 10 seconds for medium nodes in dev
-            Duration::from_secs(30)    // 30 seconds for poor nodes in dev
+            Duration::from_secs(5),  // 5 seconds for good nodes in dev
+            Duration::from_secs(10), // 10 seconds for medium nodes in dev
+            Duration::from_secs(30), // 30 seconds for poor nodes in dev
         );
         #[cfg(not(debug_assertions))]
         let (good_interval, medium_interval, poor_interval) = (
             Duration::from_secs(300),  // 5 minutes for good nodes in prod
             Duration::from_secs(1800), // 30 minutes for medium nodes in prod
-            Duration::from_secs(3600)  // 1 hour for poor nodes in prod
+            Duration::from_secs(3600), // 1 hour for poor nodes in prod
         );
 
         // Don't attempt too frequently for low-quality nodes
@@ -141,7 +139,8 @@ impl Node {
 
         SystemTime::now()
             .duration_since(self.last_attempt)
-            .unwrap_or_default() >= min_interval
+            .unwrap_or_default()
+            >= min_interval
     }
 }
 
@@ -227,7 +226,8 @@ impl AddressManager {
         let max_count = threads as usize * 3;
 
         // First pass: look for stale nodes (like Go version)
-        let mut stale_candidates: Vec<_> = self.nodes
+        let mut stale_candidates: Vec<_> = self
+            .nodes
             .iter()
             .filter(|entry| {
                 let node = entry.value();
@@ -236,9 +236,8 @@ impl AddressManager {
             .collect();
 
         // Sort stale candidates by last attempt time (oldest first) - optimized sorting
-        stale_candidates.sort_unstable_by(|a, b| {
-            a.value().last_attempt.cmp(&b.value().last_attempt)
-        });
+        stale_candidates
+            .sort_unstable_by(|a, b| a.value().last_attempt.cmp(&b.value().last_attempt));
 
         // Add stale candidates first
         for candidate in stale_candidates.into_iter().take(max_count) {
@@ -248,20 +247,21 @@ impl AddressManager {
         // If we still need more addresses, add some good nodes
         if addresses.len() < max_count {
             let remaining_count = max_count - addresses.len();
-            let mut good_candidates: Vec<_> = self.nodes
-                .iter()
-                .filter(|entry| {
-                    let node = entry.value();
-                    // Use more efficient comparison without string formatting
-                    !addresses.iter().any(|addr| addr.ip == node.address.ip && addr.port == node.address.port) &&
-                    self.is_good(node)
-                })
-                .collect();
+            let mut good_candidates: Vec<_> =
+                self.nodes
+                    .iter()
+                    .filter(|entry| {
+                        let node = entry.value();
+                        // Use more efficient comparison without string formatting
+                        !addresses.iter().any(|addr| {
+                            addr.ip == node.address.ip && addr.port == node.address.port
+                        }) && self.is_good(node)
+                    })
+                    .collect();
 
             // Sort good candidates by last attempt time - optimized sorting
-            good_candidates.sort_unstable_by(|a, b| {
-                a.value().last_attempt.cmp(&b.value().last_attempt)
-            });
+            good_candidates
+                .sort_unstable_by(|a, b| a.value().last_attempt.cmp(&b.value().last_attempt));
 
             for candidate in good_candidates.into_iter().take(remaining_count) {
                 addresses.push(candidate.value().address.clone());
@@ -270,20 +270,21 @@ impl AddressManager {
 
         // Log detailed status for debugging
 
-
-
         info!("Selected {} addresses for crawling", addresses.len());
-        
+
         addresses
     }
 
     /// Record connection attempt result for a node
-    pub fn record_connection_result(&self, address: &NetAddress, success: bool, error: Option<String>) {
+    pub fn record_connection_result(
+        &self,
+        address: &NetAddress,
+        success: bool,
+        error: Option<String>,
+    ) {
         let key = format!("{}:{}", address.ip, address.port);
         if let Some(mut node) = self.nodes.get_mut(&key) {
             node.record_connection_attempt(success, error.clone());
-            
-
         }
     }
 
@@ -358,8 +359,15 @@ impl AddressManager {
             }
         }
 
-        info!("DNS query: qtype={}, total_nodes={}, good={}, stale={}, bad={}, returned={}", 
-               qtype, total_nodes, good_nodes, stale_nodes, bad_nodes, addresses.len());
+        info!(
+            "DNS query: qtype={}, total_nodes={}, good={}, stale={}, bad={}, returned={}",
+            qtype,
+            total_nodes,
+            good_nodes,
+            stale_nodes,
+            bad_nodes,
+            addresses.len()
+        );
 
         addresses
     }
@@ -408,7 +416,7 @@ impl AddressManager {
         }
     }
 
-        /// Clean up expired and bad addresses
+    /// Clean up expired and bad addresses
     fn prune_peers(&self) {
         let mut _pruned = 0;
         let mut good = 0;
@@ -457,10 +465,10 @@ impl AddressManager {
     fn save_peers(&self) -> Result<()> {
         // Ensure the directory exists before writing files
         if let Some(parent_dir) = std::path::Path::new(&self.peers_file).parent() {
-                    if let Err(e) = std::fs::create_dir_all(parent_dir) {
-            error!("Failed to create directory {}: {}", parent_dir.display(), e);
-            return Err(crate::errors::KaseederError::Io(e));
-        }
+            if let Err(e) = std::fs::create_dir_all(parent_dir) {
+                error!("Failed to create directory {}: {}", parent_dir.display(), e);
+                return Err(crate::errors::KaseederError::Io(e));
+            }
         }
 
         let nodes: Vec<_> = self
@@ -473,9 +481,10 @@ impl AddressManager {
         let tmp_file = format!("{}.new", self.peers_file);
 
         // Check if we can write to the temporary file
-        let serialized_nodes = serde_json::to_string(&nodes)
-            .map_err(|e| crate::errors::KaseederError::Serialization(format!("Failed to serialize nodes: {}", e)))?;
-        
+        let serialized_nodes = serde_json::to_string(&nodes).map_err(|e| {
+            crate::errors::KaseederError::Serialization(format!("Failed to serialize nodes: {}", e))
+        })?;
+
         if let Err(e) = std::fs::write(&tmp_file, serialized_nodes) {
             error!("Failed to write temporary file {}: {}", tmp_file, e);
             return Err(crate::errors::KaseederError::Io(e));
@@ -484,7 +493,9 @@ impl AddressManager {
         // Verify temporary file was created and has content
         if !std::path::Path::new(&tmp_file).exists() {
             error!("Temporary file {} was not created", tmp_file);
-            return Err(crate::errors::KaseederError::Config("Temporary file creation failed".to_string()));
+            return Err(crate::errors::KaseederError::Config(
+                "Temporary file creation failed".to_string(),
+            ));
         }
 
         // Atomically rename file
@@ -495,13 +506,14 @@ impl AddressManager {
             );
             // Try to clean up temporary file, but don't fail if cleanup fails
             if let Err(cleanup_e) = std::fs::remove_file(&tmp_file) {
-                error!("Failed to remove temporary file {}: {}", tmp_file, cleanup_e);
+                error!(
+                    "Failed to remove temporary file {}: {}",
+                    tmp_file, cleanup_e
+                );
             }
             return Err(crate::errors::KaseederError::Io(e));
-        } else {
-    
-        }
-        
+
+
         Ok(())
     }
 
@@ -540,10 +552,7 @@ impl AddressManager {
         let now = SystemTime::now();
         let last_success_elapsed = now.duration_since(node.last_success).unwrap_or_default();
 
-        // Use development vs production timeouts
-        #[cfg(debug_assertions)]
-        let stale_timeout = DEV_STALE_GOOD_TIMEOUT;
-        #[cfg(not(debug_assertions))]
+        // Use consistent timeout for production
         let stale_timeout = DEFAULT_STALE_GOOD_TIMEOUT;
 
         last_success_elapsed < stale_timeout
@@ -562,7 +571,7 @@ impl AddressManager {
             }
             // For attempted new nodes, use production interval
             let poll_interval = Duration::from_secs(5); // 5 seconds in production
-            
+
             return last_attempt_elapsed > poll_interval;
         }
 
@@ -574,7 +583,7 @@ impl AddressManager {
         } else {
             DEFAULT_STALE_BAD_TIMEOUT // 2 hours
         };
-        
+
         last_attempt_elapsed > stale_timeout
     }
 

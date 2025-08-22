@@ -20,6 +20,8 @@ logs/
 _obj
 _test
 vendor
+data/
+logs/
 
 # Architecture specific extensions/prefixes
 *.[568vq]

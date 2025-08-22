@@ -3,16 +3,16 @@ use crate::types::NetAddress;
 use kaspa_consensus_core::config::Config as ConsensusConfig;
 use kaspa_core::time::unix_now;
 use kaspa_p2p_lib::{
-    common::ProtocolError,
-    make_message,
-    pb::{kaspad_message::Payload, VersionMessage},
     Adaptor, ConnectionInitializer, Hub, IncomingRoute, KaspadHandshake, KaspadMessagePayloadType,
     PeerKey, Router,
+    common::ProtocolError,
+    make_message,
+    pb::{VersionMessage, kaspad_message::Payload},
 };
 use kaspa_utils_tower::counters::TowerConnectionCounters;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 use tonic::async_trait;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
@@ -49,23 +49,26 @@ impl KaseederConnectionInitializer {
 
 #[async_trait]
 impl ConnectionInitializer for KaseederConnectionInitializer {
-    async fn initialize_connection(&self, router: Arc<Router>) -> std::result::Result<(), ProtocolError> {
+    async fn initialize_connection(
+        &self,
+        router: Arc<Router>,
+    ) -> std::result::Result<(), ProtocolError> {
         // 1. Subscribe to handshake messages and start the router
         let mut handshake = KaspadHandshake::new(&router);
         router.start();
 
         // 2. Perform handshake with protocol version negotiation
         debug!("Starting handshake with peer");
-        
+
         // Simplified protocol version negotiation like Go version
         let mut current_version = 6; // Start with latest stable version
         let mut peer_version = None;
-        
+
         // Try up to 3 different protocol versions (reduced from 5)
         for attempt in 0..3 {
             let mut version_msg = self.version_message.clone();
             version_msg.protocol_version = current_version;
-            
+
             match handshake.handshake(version_msg.clone()).await {
                 Ok(version) => {
                     let user_agent = version.user_agent.clone();
@@ -79,21 +82,25 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
                 Err(e) => {
                     debug!(
                         "Handshake failed with protocol version {} (attempt {}): {}",
-                        current_version, attempt + 1, e
+                        current_version,
+                        attempt + 1,
+                        e
                     );
-                    
+
                     // Try next protocol version (descending order from current)
                     current_version = match current_version {
-                        6 => 5,   // Try Kaspa v5
-                        5 => 4,   // Try Kaspa v4
+                        6 => 5,     // Try Kaspa v5
+                        5 => 4,     // Try Kaspa v4
                         _ => break, // Give up after trying 3 versions
                     };
                 }
             }
         }
-        
+
         let _peer_version = peer_version.ok_or_else(|| {
-            ProtocolError::from_reject_message("Failed to establish handshake with any protocol version".to_string())
+            ProtocolError::from_reject_message(
+                "Failed to establish handshake with any protocol version".to_string(),
+            )
         })?;
 
         // 3. Subscribe to messages for address collection (avoid duplicate subscriptions)
@@ -105,7 +112,7 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
 
         // 4. Register message flows before Ready exchange (rusty-kaspa style)
         debug!("Registering message flows before Ready exchange");
-        
+
         // 5. Complete handshake with Ready exchange (rusty-kaspa style)
         handshake.exchange_ready_messages().await?;
         debug!("Ready exchange completed, handshake fully established");
@@ -123,13 +130,12 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
         let addresses_tx = self.addresses_tx.clone();
 
         tokio::spawn(async move {
-            if let Err(e) = Self::handle_addresses_response(all_messages_receiver, addresses_tx).await
+            if let Err(e) =
+                Self::handle_addresses_response(all_messages_receiver, addresses_tx).await
             {
                 debug!("Address response handler error: {}", e);
             }
         });
-
-
 
         Ok(())
     }
@@ -143,13 +149,13 @@ impl KaseederConnectionInitializer {
         // Wait for address message with timeout, skipping irrelevant messages (like Go version)
         let timeout = Duration::from_secs(3); // Shorter timeout like Go version
         let start_time = std::time::Instant::now();
-        
+
         loop {
             if start_time.elapsed() > timeout {
                 debug!("Timeout waiting for addresses from peer (3s)");
                 break;
             }
-            
+
             tokio::select! {
                 msg_opt = all_messages_receiver.recv() => {
                     if let Some(msg) = msg_opt {
@@ -184,7 +190,7 @@ impl KaseederConnectionInitializer {
                                 if let Err(e) = addresses_tx.send(addresses).await {
                                     debug!("Failed to send addresses to main thread: {}", e);
                                 }
-                                
+
                                 // Successfully received addresses, break the loop
                                 break;
                             }
@@ -272,8 +278,8 @@ impl DnsseedNetAdapter {
 
         // Implement fast failure strategy for better performance
         let mut retry_count = 0;
-        let max_retries = 1;  // Reduced to 1 for fastest failure detection
-        let base_delay = Duration::from_secs(1);  // Keep 1 second for single retry
+        let max_retries = 1; // Reduced to 1 for fastest failure detection
+        let base_delay = Duration::from_secs(1); // Keep 1 second for single retry
 
         loop {
             match self.try_connect_peer(address).await {
@@ -289,9 +295,7 @@ impl DnsseedNetAdapter {
                     if retry_count >= max_retries {
                         return Err(KaseederError::ConnectionFailed(format!(
                             "Failed to connect to peer {} after {} retries: {}",
-                            address,
-                            max_retries,
-                            e
+                            address, max_retries, e
                         )));
                     }
 
@@ -317,7 +321,7 @@ impl DnsseedNetAdapter {
             .connect_peer_with_retries(
                 address.to_string(),
                 1,                      // Single connection attempt
-                Duration::from_secs(5),  // Reduced connection timeout to 5 seconds for faster failure
+                Duration::from_secs(5), // Reduced connection timeout to 5 seconds for faster failure
             )
             .await
             .map_err(|e| {
@@ -325,28 +329,46 @@ impl DnsseedNetAdapter {
                 match e {
                     kaspa_p2p_lib::ConnectionError::ProtocolError(proto_err) => {
                         // Check if it's a protocol version mismatch
-                        if proto_err.to_string().contains("version") || proto_err.to_string().contains("protocol") {
-                            KaseederError::ProtocolVersionMismatch(format!("Protocol version mismatch connecting to {}: {}", address, proto_err))
+                        if proto_err.to_string().contains("version")
+                            || proto_err.to_string().contains("protocol")
+                        {
+                            KaseederError::ProtocolVersionMismatch(format!(
+                                "Protocol version mismatch connecting to {}: {}",
+                                address, proto_err
+                            ))
                         } else {
-                            KaseederError::Protocol(format!("Protocol error connecting to {}: {}", address, proto_err))
+                            KaseederError::Protocol(format!(
+                                "Protocol error connecting to {}: {}",
+                                address, proto_err
+                            ))
                         }
                     }
-                    kaspa_p2p_lib::ConnectionError::NoAddress => {
-                        KaseederError::InvalidAddress(format!("Invalid address format for {}: {}", address, e))
-                    }
+                    kaspa_p2p_lib::ConnectionError::NoAddress => KaseederError::InvalidAddress(
+                        format!("Invalid address format for {}: {}", address, e),
+                    ),
                     kaspa_p2p_lib::ConnectionError::IoError(ref io_err) => {
                         // Check if it's a connection refused or timeout
                         if io_err.kind() == std::io::ErrorKind::ConnectionRefused {
-                            KaseederError::PeerUnavailable(format!("Peer {} refused connection: {}", address, io_err))
+                            KaseederError::PeerUnavailable(format!(
+                                "Peer {} refused connection: {}",
+                                address, io_err
+                            ))
                         } else if io_err.kind() == std::io::ErrorKind::TimedOut {
-                            KaseederError::NetworkTimeout(format!("Connection timeout to {}: {}", address, io_err))
+                            KaseederError::NetworkTimeout(format!(
+                                "Connection timeout to {}: {}",
+                                address, io_err
+                            ))
                         } else {
-                            KaseederError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("I/O error connecting to {}: {}", address, e)))
+                            KaseederError::Io(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                format!("I/O error connecting to {}: {}", address, e),
+                            ))
                         }
                     }
-                    _ => {
-                        KaseederError::ConnectionFailed(format!("Connection failed to {}: {}", address, e))
-                    }
+                    _ => KaseederError::ConnectionFailed(format!(
+                        "Connection failed to {}: {}",
+                        address, e
+                    )),
                 }
             })?;
 
@@ -488,19 +510,22 @@ impl DnsseedNetAdapter {
     /// Diagnostic method to test network connectivity
     pub async fn diagnose_connection(&self, address: &str) -> Result<String> {
         info!("Diagnosing connection to: {}", address);
-        
+
         // Test basic connectivity first
         let start_time = std::time::Instant::now();
-        
+
         match self.try_connect_peer(address).await {
             Ok((peer_key, _, addresses)) => {
                 let duration = start_time.elapsed();
                 let result = format!(
                     "✅ Connection successful to {} (key: {}) in {:?}. Received {} addresses.",
-                    address, peer_key, duration, addresses.len()
+                    address,
+                    peer_key,
+                    duration,
+                    addresses.len()
                 );
                 info!("{}", result);
-                
+
                 // Clean up
                 self.adaptor.terminate(peer_key).await;
                 Ok(result)
@@ -512,15 +537,21 @@ impl DnsseedNetAdapter {
                     address, duration, e
                 );
                 warn!("{}", error_msg);
-                
+
                 // Provide specific error analysis
                 let analysis = match e {
-                    KaseederError::Protocol(_) => "Protocol compatibility issue - node may be running different version",
-                    KaseederError::Io(_) => "Network I/O error - check firewall, routing, or node availability",
-                    KaseederError::ConnectionFailed(_) => "General connection failure - node may be offline or overloaded",
-                    _ => "Unknown error type"
+                    KaseederError::Protocol(_) => {
+                        "Protocol compatibility issue - node may be running different version"
+                    }
+                    KaseederError::Io(_) => {
+                        "Network I/O error - check firewall, routing, or node availability"
+                    }
+                    KaseederError::ConnectionFailed(_) => {
+                        "General connection failure - node may be offline or overloaded"
+                    }
+                    _ => "Unknown error type",
                 };
-                
+
                 Ok(format!("{} | Analysis: {}", error_msg, analysis))
             }
         }

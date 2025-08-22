@@ -119,7 +119,8 @@ impl SystemMonitor {
         }
 
         // Check memory usage
-        if metrics.memory_usage > 1024 * 1024 * 1024 { // 1GB
+        if metrics.memory_usage > 1024 * 1024 * 1024 {
+            // 1GB
             health.add_issue("High memory usage detected".to_string());
         }
 

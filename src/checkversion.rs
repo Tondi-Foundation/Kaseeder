@@ -16,8 +16,7 @@ impl VersionChecker {
                 if ordering == std::cmp::Ordering::Greater {
                     return Err(KaseederError::Validation(format!(
                         "User agent version {} is below minimum required version {}",
-                        peer_version,
-                        min_version
+                        peer_version, min_version
                     )));
                 }
                 Ok(())
@@ -42,7 +41,9 @@ impl VersionChecker {
             .collect();
 
         if v1_parts.is_empty() || v2_parts.is_empty() {
-            return Err(KaseederError::Validation("Invalid version format".to_string()));
+            return Err(KaseederError::Validation(
+                "Invalid version format".to_string(),
+            ));
         }
 
         // Compare version numbers
@@ -72,8 +73,7 @@ impl VersionChecker {
         if peer_version < min_version as u32 {
             return Err(KaseederError::Validation(format!(
                 "Protocol version {} is below minimum required version {}",
-                peer_version,
-                min_version
+                peer_version, min_version
             )));
         }
 

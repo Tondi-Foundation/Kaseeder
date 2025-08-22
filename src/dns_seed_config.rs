@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 
 /// DNS seed server configuration
 #[derive(Debug, Clone)]
@@ -14,24 +14,30 @@ impl DnsSeedConfig {
     /// Get default configuration
     pub fn default() -> Self {
         Self {
-                    mainnet_servers: vec![
-            "seeder1.kaspad.net".to_string(),
-            "seeder2.kaspad.net".to_string(),
-            "seeder3.kaspad.net".to_string(),
-            "seeder4.kaspad.net".to_string(),
-            "kaspadns.kaspacalc.net".to_string(),
-            "n-mainnet.kaspa.ws".to_string(),
-        ],
+            mainnet_servers: vec![
+                "seeder1.kaspad.net".to_string(),
+                "seeder2.kaspad.net".to_string(),
+                "seeder3.kaspad.net".to_string(),
+                "seeder4.kaspad.net".to_string(),
+                "kaspadns.kaspacalc.net".to_string(),
+                "n-mainnet.kaspa.ws".to_string(),
+            ],
             testnet_servers: {
                 let mut map = HashMap::new();
-                map.insert(10, vec![
-                    "seed.testnet.kaspa.org".to_string(),
-                    "seed1-testnet.kaspad.net".to_string(),
-                ]);
-                map.insert(11, vec![
-                    "seed.testnet.kaspa.org".to_string(),
-                    "seed1-testnet.kaspad.net".to_string(),
-                ]);
+                map.insert(
+                    10,
+                    vec![
+                        "seed.testnet.kaspa.org".to_string(),
+                        "seed1-testnet.kaspad.net".to_string(),
+                    ],
+                );
+                map.insert(
+                    11,
+                    vec![
+                        "seed.testnet.kaspa.org".to_string(),
+                        "seed1-testnet.kaspad.net".to_string(),
+                    ],
+                );
                 map
             },
         }
@@ -85,16 +91,20 @@ mod tests {
     #[test]
     fn test_dns_seed_config() {
         let config = DnsSeedConfig::default();
-        
+
         // Test mainnet servers
         assert!(!config.get_mainnet_servers().is_empty());
-        assert!(config.get_mainnet_servers().contains(&"seeder1.kaspad.net".to_string()));
-        
+        assert!(
+            config
+                .get_mainnet_servers()
+                .contains(&"seeder1.kaspad.net".to_string())
+        );
+
         // Test testnet servers
         let testnet_10 = config.get_testnet_servers(10);
         assert!(testnet_10.is_some());
         assert!(!testnet_10.unwrap().is_empty());
-        
+
         let testnet_11 = config.get_testnet_servers(11);
         assert!(testnet_11.is_some());
         assert!(!testnet_11.unwrap().is_empty());
@@ -104,15 +114,23 @@ mod tests {
     fn test_add_remove_servers() {
         let mut config = DnsSeedConfig::default();
         let original_count = config.get_mainnet_servers().len();
-        
+
         // Add server
         config.add_mainnet_server("test.example.com".to_string());
         assert_eq!(config.get_mainnet_servers().len(), original_count + 1);
-        assert!(config.get_mainnet_servers().contains(&"test.example.com".to_string()));
-        
+        assert!(
+            config
+                .get_mainnet_servers()
+                .contains(&"test.example.com".to_string())
+        );
+
         // Remove server
         config.remove_mainnet_server("test.example.com");
         assert_eq!(config.get_mainnet_servers().len(), original_count);
-        assert!(!config.get_mainnet_servers().contains(&"test.example.com".to_string()));
+        assert!(
+            !config
+                .get_mainnet_servers()
+                .contains(&"test.example.com".to_string())
+        );
     }
 }

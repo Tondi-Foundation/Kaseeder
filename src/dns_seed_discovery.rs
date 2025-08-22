@@ -1,7 +1,7 @@
 use crate::errors::Result;
 use crate::types::NetAddress;
 use std::net::ToSocketAddrs;
-use tracing::{warn, info, debug};
+use tracing::{debug, info, warn};
 
 /// DNS seed discoverer
 pub struct DnsSeedDiscovery;
@@ -40,26 +40,26 @@ impl DnsSeedDiscovery {
     ) -> Result<Vec<NetAddress>> {
         // Try multiple query methods for better reliability
         let mut addresses = Vec::new();
-        
+
         // Method 1: Try to connect to the seeder itself to get peer addresses (like Go version)
         if let Ok(addrs) = Self::query_seeder_peer(seed_server, default_port).await {
             addresses.extend(addrs);
         }
-        
+
         // Method 2: Direct socket address resolution as fallback
         if addresses.is_empty() {
             if let Ok(addrs) = Self::query_seed_server_direct(seed_server, default_port).await {
                 addresses.extend(addrs);
             }
         }
-        
+
         // Method 3: Fallback to basic DNS resolution
         if addresses.is_empty() {
             if let Ok(addrs) = Self::query_basic_dns(seed_server, default_port).await {
                 addresses.extend(addrs);
             }
         }
-        
+
         // Method 4: Try alternative ports if the default port fails
         if addresses.is_empty() {
             let alternative_ports = [16110, 16112, 16113]; // Common Kaspa ports
@@ -67,22 +67,32 @@ impl DnsSeedDiscovery {
                 if let Ok(addrs) = Self::query_seed_server_direct(seed_server, alt_port).await {
                     addresses.extend(addrs);
                     if !addresses.is_empty() {
-                        info!("Found addresses using alternative port {} for {}", alt_port, seed_server);
+                        info!(
+                            "Found addresses using alternative port {} for {}",
+                            alt_port, seed_server
+                        );
                         break;
                     }
                 }
             }
         }
-        
+
         // Remove duplicates and filter valid addresses
         addresses = Self::deduplicate_and_filter_addresses(addresses);
-        
+
         if !addresses.is_empty() {
-            info!("Discovered {} addresses from DNS seed server: {}", addresses.len(), seed_server);
+            info!(
+                "Discovered {} addresses from DNS seed server: {}",
+                addresses.len(),
+                seed_server
+            );
         } else {
-            warn!("No addresses discovered from DNS seed server: {}", seed_server);
+            warn!(
+                "No addresses discovered from DNS seed server: {}",
+                seed_server
+            );
         }
-        
+
         Ok(addresses)
     }
 
@@ -107,82 +117,74 @@ impl DnsSeedDiscovery {
 
         Ok(result)
     }
-    
+
     /// Try to connect to the seeder itself to get peer addresses (like Go version)
-    async fn query_seeder_peer(
-        seed_server: &str,
-        default_port: u16,
-    ) -> Result<Vec<NetAddress>> {
+    async fn query_seeder_peer(seed_server: &str, default_port: u16) -> Result<Vec<NetAddress>> {
         // This is the main method - try to get peer addresses from the seeder
         // like Go version's dnsseed.SeedFromDNS
-        
+
         let mut addresses = Vec::new();
-        
+
         // Method 1: Get addresses from the seeder's DNS records
         // Many DNS seed servers publish peer addresses as DNS records
         if let Ok(addrs) = Self::query_seeder_dns_records(seed_server, default_port).await {
             addresses.extend(addrs);
         }
-        
+
         // Method 2: Query known working peer addresses from multiple sources
         if let Ok(addrs) = Self::query_known_peers(seed_server, default_port).await {
             addresses.extend(addrs);
         }
-        
+
         // Method 3: Try to connect and request peer list
         if addresses.is_empty() {
             if let Ok(addrs) = Self::query_seeder_connection(seed_server, default_port).await {
                 addresses.extend(addrs);
             }
         }
-        
+
         Ok(addresses)
     }
-    
+
     /// Query DNS records from the seeder (many seeders publish peer addresses as DNS records)
     async fn query_seeder_dns_records(
         _seed_server: &str,
         _default_port: u16,
     ) -> Result<Vec<NetAddress>> {
         let addresses = Vec::new();
-        
+
         // Try to query the seeder's own DNS records for peer addresses
         // This is a common pattern used by many DNS seeders
-        
-        // In production, this would query the seeder's DNS records dynamically
-        // For now, we'll return an empty list to avoid hardcoded addresses
-        // The system will discover peers through the normal crawling process
-        
-        debug!("No hardcoded peers - using dynamic discovery only");
-        
-        Ok(addresses)
-    }
-    
-    /// Query known working peer addresses from multiple sources
-    async fn query_known_peers(
-        _seed_server: &str,
-        _default_port: u16,
-    ) -> Result<Vec<NetAddress>> {
-        let addresses = Vec::new();
-        
-        // In production, this would query the seeder's DNS records dynamically
-        // For now, we'll return an empty list to avoid hardcoded addresses
-        // The system will discover peers through the normal crawling process
-        
-        debug!("No hardcoded peers - using dynamic discovery only");
-        
-        Ok(addresses)
-    }
-    
 
-    
+        // In production, this would query the seeder's DNS records dynamically
+        // For now, we'll return an empty list to avoid hardcoded addresses
+        // The system will discover peers through the normal crawling process
+
+        debug!("No hardcoded peers - using dynamic discovery only");
+
+        Ok(addresses)
+    }
+
+    /// Query known working peer addresses from multiple sources
+    async fn query_known_peers(_seed_server: &str, _default_port: u16) -> Result<Vec<NetAddress>> {
+        let addresses = Vec::new();
+
+        // In production, this would query the seeder's DNS records dynamically
+        // For now, we'll return an empty list to avoid hardcoded addresses
+        // The system will discover peers through the normal crawling process
+
+        debug!("No hardcoded peers - using dynamic discovery only");
+
+        Ok(addresses)
+    }
+
     /// Try to connect to the seeder to request peer addresses
     async fn query_seeder_connection(
         seed_server: &str,
         default_port: u16,
     ) -> Result<Vec<NetAddress>> {
         let addr = format!("{}:{}", seed_server, default_port);
-        
+
         // Try to establish a basic connection to see if the seeder is reachable
         match tokio::net::TcpStream::connect(&addr).await {
             Ok(_) => {
@@ -199,10 +201,7 @@ impl DnsSeedDiscovery {
     }
 
     /// Basic DNS resolution fallback
-    async fn query_basic_dns(
-        seed_server: &str,
-        default_port: u16,
-    ) -> Result<Vec<NetAddress>> {
+    async fn query_basic_dns(seed_server: &str, default_port: u16) -> Result<Vec<NetAddress>> {
         // Simple DNS resolution using std::net
         let addrs = match seed_server.parse::<std::net::IpAddr>() {
             Ok(ip) => {
@@ -212,7 +211,9 @@ impl DnsSeedDiscovery {
             Err(_) => {
                 // Try to resolve hostname
                 match (seed_server, default_port).to_socket_addrs() {
-                    Ok(addrs) => addrs.map(|addr| NetAddress::new(addr.ip(), addr.port())).collect(),
+                    Ok(addrs) => addrs
+                        .map(|addr| NetAddress::new(addr.ip(), addr.port()))
+                        .collect(),
                     Err(e) => {
                         warn!("Failed to resolve hostname {}: {}", seed_server, e);
                         Vec::new()
@@ -220,7 +221,7 @@ impl DnsSeedDiscovery {
                 }
             }
         };
-        
+
         Ok(addrs)
     }
 
@@ -229,7 +230,7 @@ impl DnsSeedDiscovery {
         // Use HashSet for more efficient deduplication
         use std::collections::HashSet;
         use std::hash::{Hash, Hasher};
-        
+
         let mut seen = HashSet::new();
         addresses.retain(|addr| {
             // Create a simple hash key for IP:port combination
@@ -237,21 +238,21 @@ impl DnsSeedDiscovery {
             addr.ip.hash(&mut hasher);
             addr.port.hash(&mut hasher);
             let key = hasher.finish();
-            
+
             // Check if we've seen this address before
             if seen.contains(&key) {
                 false // Remove duplicate
             } else {
                 seen.insert(key);
-                
+
                 // Filter out invalid addresses
-                addr.port != 0 && 
-                !addr.ip.is_loopback() && 
-                !addr.ip.is_unspecified() &&
-                !addr.ip.is_multicast()
+                addr.port != 0
+                    && !addr.ip.is_loopback()
+                    && !addr.ip.is_unspecified()
+                    && !addr.ip.is_multicast()
             }
         });
-        
+
         addresses
     }
 }
@@ -287,8 +288,7 @@ mod tests {
     #[tokio::test]
     async fn test_query_seed_server() {
         // Note: This test requires network connection
-        let result =
-            DnsSeedDiscovery::query_seed_server("seeder1.kaspad.net", 16111).await;
+        let result = DnsSeedDiscovery::query_seed_server("seeder1.kaspad.net", 16111).await;
         // Should not panic even if it fails
         assert!(result.is_ok());
     }

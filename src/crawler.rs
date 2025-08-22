@@ -9,7 +9,7 @@ use crate::types::NetAddress;
 use kaspa_consensus_core::config::Config as ConsensusConfig;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{mpsc, Mutex, Semaphore};
+use tokio::sync::{Mutex, Semaphore, mpsc};
 use tracing::{debug, error, info, warn};
 
 /// Performance-optimized crawler manager
@@ -83,7 +83,7 @@ impl Crawler {
     async fn initialize_known_peers(&self) -> Result<()> {
         if let Some(ref known_peers) = self.config.known_peers {
             info!("Processing {} known peers", known_peers.split(',').count());
-            
+
             let peers: Vec<NetAddress> = known_peers
                 .split(',')
                 .filter_map(|peer_str| {
@@ -115,8 +115,11 @@ impl Crawler {
                     self.address_manager.attempt(&peer);
                     self.address_manager.good(&peer, None, None);
                 }
-                
-                info!("Address manager now has {} total nodes", self.address_manager.address_count());
+
+                info!(
+                    "Address manager now has {} total nodes",
+                    self.address_manager.address_count()
+                );
                 info!("Added {} known peers", added);
             }
         }
@@ -131,17 +134,22 @@ impl Crawler {
         loop {
             // Get addresses to poll like Go version
             let peers = self.address_manager.addresses(self.config.threads);
-            info!("Main loop: Addresses() returned {} peers, total nodes: {}", peers.len(), self.address_manager.address_count());
-
-
+            info!(
+                "Main loop: Addresses() returned {} peers, total nodes: {}",
+                peers.len(),
+                self.address_manager.address_count()
+            );
 
             // Only try DNS seeding if we have no addresses at all
             if peers.is_empty() && self.address_manager.address_count() == 0 {
                 info!("No addresses at all, trying DNS seeding...");
                 self.seed_from_dns().await?;
                 let peers_after_dns = self.address_manager.addresses(self.config.threads);
-                info!("After DNS seeding: Addresses() returned {} peers", peers_after_dns.len());
-                
+                info!(
+                    "After DNS seeding: Addresses() returned {} peers",
+                    peers_after_dns.len()
+                );
+
                 // If still no peers, sleep and retry
                 if peers_after_dns.is_empty() {
                     info!("No addresses discovered - waiting 30 seconds before retry");
@@ -157,7 +165,7 @@ impl Crawler {
 
             // Process peers (like Go version)
             info!("Processing {} peers for polling", peers.len());
-            
+
             // Process peers in parallel with optimized network adapter selection
             for (i, addr) in peers.iter().enumerate() {
                 let permit = self.semaphore.clone().acquire_owned().await?;
@@ -168,13 +176,8 @@ impl Crawler {
                 let config = self.config.clone();
 
                 let task = tokio::spawn(async move {
-                    let result = Self::poll_single_peer(
-                        net_adapter,
-                        address,
-                        address_manager,
-                        config,
-                    )
-                    .await;
+                    let result =
+                        Self::poll_single_peer(net_adapter, address, address_manager, config).await;
 
                     // Automatically release semaphore permit
                     drop(permit);
@@ -186,7 +189,7 @@ impl Crawler {
 
             // Wait for all tasks to complete
             let results = futures::future::join_all(batch_tasks.drain(..)).await;
-            
+
             for result in results {
                 match result {
                     Ok(Err(e)) => {
@@ -241,8 +244,6 @@ impl Crawler {
         Ok(())
     }
 
-
-
     /// Poll a single node with intelligent connection tracking
     async fn poll_single_peer(
         net_adapter: Arc<DnsseedNetAdapter>,
@@ -257,38 +258,44 @@ impl Crawler {
         debug!("Polling peer {}", peer_address);
 
         // Connect to node and get addresses
-        let connection_result = net_adapter
-            .connect_and_get_addresses(&peer_address)
-            .await;
+        let connection_result = net_adapter.connect_and_get_addresses(&peer_address).await;
 
         match connection_result {
             Ok((version_msg, addresses)) => {
                 // Record successful connection
                 address_manager.record_connection_result(&address, true, None);
-                
+
                 // Check protocol version
                 if let Err(e) = VersionChecker::check_protocol_version(
                     version_msg.protocol_version,
                     config.min_proto_ver,
                 ) {
                     let error_msg = format!("Protocol version validation failed: {}", e);
-                    address_manager.record_connection_result(&address, false, Some(error_msg.clone()));
+                    address_manager.record_connection_result(
+                        &address,
+                        false,
+                        Some(error_msg.clone()),
+                    );
                     return Err(KaseederError::Validation(format!(
                         "Peer {} protocol version validation failed: {}",
-                        peer_address,
-                        e
+                        peer_address, e
                     )));
                 }
 
                 // Check user agent version
                 if let Some(ref min_ua_ver) = config.min_ua_ver {
-                    if let Err(e) = VersionChecker::check_version(min_ua_ver, &version_msg.user_agent) {
+                    if let Err(e) =
+                        VersionChecker::check_version(min_ua_ver, &version_msg.user_agent)
+                    {
                         let error_msg = format!("User agent validation failed: {}", e);
-                        address_manager.record_connection_result(&address, false, Some(error_msg.clone()));
+                        address_manager.record_connection_result(
+                            &address,
+                            false,
+                            Some(error_msg.clone()),
+                        );
                         return Err(KaseederError::Validation(format!(
                             "Peer {} user agent validation failed: {}",
-                            peer_address,
-                            e
+                            peer_address, e
                         )));
                     }
                 }
@@ -317,7 +324,7 @@ impl Crawler {
                 // Record failed connection with error details
                 let error_msg = e.to_string();
                 address_manager.record_connection_result(&address, false, Some(error_msg.clone()));
-                
+
                 // Classify error type for different handling
                 let classified_error = if error_msg.contains("Unimplemented") {
                     "Unsupported protocol"
@@ -328,10 +335,13 @@ impl Crawler {
                 } else {
                     "Connection failed"
                 };
-                
+
                 debug!("❌ {} - {}: {}", classified_error, peer_address, error_msg);
-                
-                Err(KaseederError::ConnectionFailed(format!("Could not connect to {}: {}", peer_address, e)))
+
+                Err(KaseederError::ConnectionFailed(format!(
+                    "Could not connect to {}: {}",
+                    peer_address, e
+                )))
             }
         }
     }

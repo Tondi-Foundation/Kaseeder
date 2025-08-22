@@ -1,4 +1,5 @@
-use kaseeder::config::{Config, CliOverrides};
+use clap::Parser;
+use kaseeder::config::{CliOverrides, Config};
 use kaseeder::crawler::Crawler;
 use kaseeder::dns::DnsServer;
 use kaseeder::errors::{KaseederError, Result};
@@ -7,9 +8,8 @@ use kaseeder::kaspa_protocol::create_consensus_config;
 use kaseeder::logging::LoggingConfig;
 use kaseeder::manager::AddressManager;
 use kaseeder::profiling::ProfilingServer;
-use clap::Parser;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::signal;
 use tracing::{error, info};
 
@@ -20,11 +20,11 @@ struct Cli {
     /// Configuration file path
     #[arg(short, long)]
     config: Option<String>,
-    
+
     /// Diagnose connection to specific peer address (e.g., 192.168.1.1:16110)
     #[arg(short, long)]
     diagnose: Option<String>,
-    
+
     /// Hostname for DNS server
     #[arg(long)]
     host: Option<String>,
@@ -125,7 +125,7 @@ async fn main() -> Result<()> {
 
     // Initialize logging with configuration
     let mut logging_config = LoggingConfig::default();
-    
+
     // Apply CLI overrides to logging
     if let Some(log_level) = &cli.log_level {
         logging_config.level = log_level.clone();
@@ -133,7 +133,7 @@ async fn main() -> Result<()> {
     if let Some(nologfiles) = cli.nologfiles {
         logging_config.no_log_files = nologfiles;
     }
-    
+
     // Apply advanced logging configuration from main config
     logging_config.rotation_strategy = config.advanced_logging.rotation_strategy.clone();
     logging_config.rotation_interval_hours = config.advanced_logging.rotation_interval_hours;
@@ -151,21 +151,24 @@ async fn main() -> Result<()> {
     kaseeder::logging::init_logging_with_config(logging_config)?;
 
     info!("Starting Kaspa DNS Seeder...");
-    info!("Log rotation: {}", config.advanced_logging.rotation_strategy);
+    info!(
+        "Log rotation: {}",
+        config.advanced_logging.rotation_strategy
+    );
 
     // Check if this is a diagnose command first
     if let Some(address) = &cli.diagnose {
         info!("Running network diagnosis for address: {}", address);
-        
+
         // For diagnosis, use minimal configuration
         let consensus_config = create_consensus_config(false, 0); // Use mainnet defaults
-        
+
         // Create network adapter for diagnosis
         let net_adapter = kaseeder::netadapter::DnsseedNetAdapter::new(consensus_config)?;
-        
+
         // Run diagnosis
         let result = net_adapter.diagnose_connection(address).await?;
-        
+
         println!("{}", result);
         return Ok(());
     }
@@ -203,7 +206,8 @@ async fn main() -> Result<()> {
 
     // Create profiling server if enabled
     let profiling_server = if let Some(ref profile_port) = config.profile {
-        let port: u16 = profile_port.parse()
+        let port: u16 = profile_port
+            .parse()
             .map_err(|_| KaseederError::InvalidConfigValue {
                 field: "profile".to_string(),
                 value: profile_port.clone(),

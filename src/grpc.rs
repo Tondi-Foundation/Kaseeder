@@ -3,7 +3,7 @@ use crate::manager::AddressManager;
 use crate::types::NetAddress;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::{Request, Response, Status, transport::Server};
 use tracing::info;
 
 // Include generated protobuf code
@@ -12,12 +12,10 @@ pub mod kaseeder {
 }
 
 use kaseeder::{
-    kaseeder_service_server::{
-        KaseederService as KaseederServiceTrait, KaseederServiceServer,
-    },
-    health_check_response::Status as HealthStatus,
     GetAddressStatsRequest, GetAddressStatsResponse, GetAddressesRequest, GetAddressesResponse,
     GetStatsRequest, GetStatsResponse, HealthCheckRequest, HealthCheckResponse,
+    health_check_response::Status as HealthStatus,
+    kaseeder_service_server::{KaseederService as KaseederServiceTrait, KaseederServiceServer},
 };
 
 /// gRPC server structure
@@ -265,7 +263,8 @@ impl KaseederServiceTrait for KaseederServiceImpl {
             // Classify addresses as good or stale based on last success time
             let now = SystemTime::now();
             if let Ok(duration) = now.duration_since(node.last_success) {
-                if duration.as_secs() < 3600 { // Less than 1 hour
+                if duration.as_secs() < 3600 {
+                    // Less than 1 hour
                     good_count += 1;
                 } else {
                     stale_count += 1;
@@ -314,7 +313,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let test_app_dir = temp_dir.path().join("test_app");
         let test_app_dir_str = test_app_dir.to_string_lossy().to_string();
-        
+
         let address_manager = Arc::new(AddressManager::new(&test_app_dir_str, 0).unwrap());
         let _server = GrpcServer::new(address_manager);
         assert!(true); // Verify creation success
@@ -325,7 +324,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let test_app_dir = temp_dir.path().join("test_app");
         let test_app_dir_str = test_app_dir.to_string_lossy().to_string();
-        
+
         let address_manager = Arc::new(AddressManager::new(&test_app_dir_str, 0).unwrap());
         let _server = GrpcServer::new(address_manager);
 

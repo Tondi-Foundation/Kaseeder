@@ -1,4 +1,4 @@
-use kaspa_consensus_core::config::{params::Params, Config as ConsensusConfig};
+use kaspa_consensus_core::config::{Config as ConsensusConfig, params::Params};
 use kaspa_consensus_core::network::{NetworkId, NetworkType};
 use std::sync::Arc;
 
