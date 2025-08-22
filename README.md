@@ -1,450 +1,258 @@
-# Kaseeder
+# Kaspa DNS Seeder (Rust Version)
 
-A high-performance DNS seeder for the Kaspa network, written in Rust. Kaseeder crawls the Kaspa P2P network to discover and maintain a list of active nodes, providing reliable DNS resolution for Kaspa clients.
+[![ISC License](http://img.shields.io/badge/license-ISC-blue.svg)](https://choosealicense.com/licenses/isc/)
 
-## 🚀 Features
+Kaspa DNS Seeder exposes a list of known peers to any new peer joining the Kaspa network via the DNS protocol. This is the Rust implementation, fully aligned with the Go version.
 
-- **High Performance**: Built with Rust and Tokio for maximum efficiency
-- **DNS Seeding**: Provides DNS resolution for Kaspa network nodes
-- **P2P Crawling**: Actively crawls the Kaspa network to discover peers
-- **gRPC API**: RESTful API for monitoring and management
-- **Configurable**: Flexible configuration with command-line overrides
-- **Production Ready**: Comprehensive error handling and logging
-- **Docker Support**: Containerized deployment with Docker and Docker Compose
+When DNSSeeder is started for the first time, it will connect to the kaspad node specified with the `--seeder` flag and listen for `addr` messages. These messages contain the IPs of all peers known by the node. DNSSeeder will then connect to each of these peers, listen for their `addr` messages, and continue to traverse the network in this fashion. DNSSeeder maintains a list of all known peers and periodically checks that they are online and available. The list is stored on disk in a json file, so on subsequent start ups the kaspad node specified with `--seeder` does not need to be online.
 
-## 📋 System Requirements
+When DNSSeeder is queried for node information, it responds with details of a random selection of the reliable nodes it knows about.
 
-- **Rust**: 1.89+ (latest stable recommended)
-- **OS**: Linux, macOS, Windows
-- **Memory**: 512MB RAM minimum, 1GB+ recommended
-- **Network**: Internet connection for P2P communication
-- **Ports**: 5354 (DNS), 3737 (gRPC), 8080 (Profiling)
+This project is currently under active development and is in Beta state.
 
-## 🛠️ Installation
+## Features
+
+- **Fully aligned with Go version**: All functionality, configuration options, and behavior match the Go implementation
+- **DNS server**: Responds to A, AAAA, and NS queries
+- **Peer discovery**: Automatically discovers and validates network peers
+- **Network support**: Mainnet and testnet-11 support
+- **gRPC API**: Provides programmatic access to peer information
+- **Performance profiling**: Built-in HTTP profiling server
+- **Persistent storage**: Saves peer information to disk for fast startup
+
+## Requirements
+
+- Rust 1.70 or later
+- Network access to Kaspa nodes
+
+## Installation
 
 ### From Source
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/your-username/kaseeder.git
-   cd kaseeder
-   ```
-
-2. **Build the project**:
-   ```bash
-   # Debug build
-   cargo build
-   
-   # Release build (recommended for production)
-   cargo build --release
-   ```
-
-3. **Install system-wide** (optional):
-   ```bash
-   cargo install --path .
-   ```
-
-### Using Docker
-
 ```bash
-# Pull the image
-docker pull kaseeder/kaseeder:latest
-
-# Or build locally
-docker build -t kaseeder .
+git clone https://github.com/your-repo/kaseeder
+cd kaseeder
+cargo build --release
 ```
 
-## 🚀 Quick Start
+### From Binary
 
-### Basic Usage
+Download the latest release binary for your platform from the releases page.
 
-1. **Start with default configuration**:
-   ```bash
-   ./target/release/kaseeder
-   ```
-
-2. **Start with custom configuration**:
-   ```bash
-   ./target/release/kaseeder \
-     --host 0.0.0.0 \
-     --nameserver ns1.example.com \
-     --seeder seeder.example.com \
-     --grpc-listen 0.0.0.0:3737 \
-     --log-level info
-   ```
-
-3. **Start with configuration file**:
-   ```bash
-   ./target/release/kaseeder --config kaseeder.conf
-   ```
-
-### Docker Quick Start
-
-```bash
-# Run with Docker
-docker run -d \
-  --name kaseeder \
-  -p 5354:5354 \
-  -p 3737:3737 \
-  -p 8080:8080 \
-  kaseeder/kaseeder:latest
-
-# Run with Docker Compose
-docker-compose up -d
-```
-
-## ⚙️ Configuration
+## Configuration
 
 ### Configuration File
 
-Create `kaseeder.conf` in your working directory:
+Create a configuration file `kaseeder.conf` in your working directory or use the example:
+
+```bash
+cp kaseeder.conf.example kaseeder.conf
+```
+
+Edit the configuration file with your settings:
 
 ```toml
-# Basic Configuration
-listen = "0.0.0.0:5354"
-grpc_listen = "0.0.0.0:3737"
+# DNS server configuration
+host = "seed.kaspa.org"
+nameserver = "ns1.kaspa.org"
+listen = "127.0.0.1:5354"
+
+# gRPC server configuration
+grpc_listen = "127.0.0.1:3737"
+
+# Application directory for data storage
+app_dir = "./data"
+
+# Seed node address (IP:port or just IP)
+seeder = "192.168.1.100:16111"
+
+# Known peer addresses (comma-separated list)
+known_peers = "192.168.1.100:16111,192.168.1.101:16111"
+
+# Number of crawler threads (1-32)
+threads = 8
+
+# Network configuration
+testnet = false
+net_suffix = 0  # Only testnet-11 (suffix 11) is supported
+
+# Logging configuration
 log_level = "info"
 nologfiles = false
-error_log_file = "logs/error.log"
+error_log_file = "logs/kaseeder_error.log"
 
-# Network Configuration
-network = "kaspa-mainnet"
-min_ua_ver = "1.0.0"
-seeder = "seeder.example.com"
-known_peers = ["peer1.example.com:16111", "peer2.example.com:16111"]
-
-# Performance Configuration
-profile = true
-max_addresses = 10000
-threads = 4
-
-# Application Configuration
-app_dir = "data"
+# Performance profiling (optional, port 1024-65535)
+# profile = "6060"
 ```
 
-### Command-Line Options
+### Testnet Configuration
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--host` | DNS server host | `0.0.0.0` |
-| `--nameserver` | Nameserver domain | `ns1.example.com` |
-| `--seeder` | Seeder domain | `seeder.example.com` |
-| `--grpc-listen` | gRPC server address | `0.0.0.0:3737` |
-| `--log-level` | Logging level | `info` |
-| `--app-dir` | Application data directory | `data` |
-| `--config` | Configuration file path | `kaseeder.conf` |
-| `--help` | Show help message | - |
-
-### Environment Variables
-
-```bash
-# Set configuration via environment
-export KASEEDER_HOST=0.0.0.0
-export KASEEDER_GRPC_LISTEN=0.0.0.0:3737
-export KASEEDER_LOG_LEVEL=debug
-export KASEEDER_APP_DIR=/var/lib/kaseeder
-
-# Run the application
-./target/release/kaseeder
-```
-
-## 🐳 Docker Deployment
-
-### Dockerfile
-
-```dockerfile
-FROM rust:1.75-slim as builder
-WORKDIR /usr/src/app
-COPY . .
-RUN cargo build --release
-
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /usr/src/app/target/release/kaseeder /usr/local/bin/
-EXPOSE 5354 3737 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3737/health || exit 1
-CMD ["kaseeder"]
-```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  kaseeder:
-    build: .
-    container_name: kaseeder
-    ports:
-      - "5354:5354"   # DNS
-      - "3737:3737"   # gRPC
-      - "8080:8080"   # Profiling
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-    environment:
-      - KASEEDER_LOG_LEVEL=info
-      - KASEEDER_NETWORK=kaspa-mainnet
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3737/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-```
-
-## 🚀 Production Deployment
-
-### Systemd Service
-
-Create `/etc/systemd/system/kaseeder.service`:
-
-```ini
-[Unit]
-Description=Kaseeder DNS Seeder
-After=network.target
-Wants=network.target
-
-[Service]
-Type=simple
-User=kaseeder
-Group=kaseeder
-WorkingDirectory=/opt/kaseeder
-ExecStart=/opt/kaseeder/kaseeder --config /opt/kaseeder/kaseeder.conf
-Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=kaseeder
-
-# Security settings
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ReadWritePaths=/opt/kaseeder/data /opt/kaseeder/logs
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Nginx Reverse Proxy
-
-```nginx
-server {
-    listen 80;
-    server_name seeder.example.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:3737;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-### Firewall Configuration
-
-```bash
-# UFW (Ubuntu/Debian)
-sudo ufw allow 5354/udp  # DNS
-sudo ufw allow 3737/tcp  # gRPC
-sudo ufw allow 8080/tcp  # Profiling
-
-# iptables
-sudo iptables -A INPUT -p udp --dport 5354 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 3737 -j ACCEPT
-sudo iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
-```
-
-## 📊 Monitoring & Health Checks
-
-### Health Check Endpoints
-
-```bash
-# gRPC health check
-curl http://localhost:3737/health
-
-# Profiling endpoint
-curl http://localhost:8080/metrics
-
-# DNS query test
-dig @localhost -p 5354 seeder.example.com
-```
-
-### Log Monitoring
-
-```bash
-# Follow logs in real-time
-tail -f logs/kaseeder.log
-
-# Search for errors
-grep ERROR logs/kaseeder.log
-
-# Monitor specific log levels
-grep "DEBUG\|INFO\|WARN\|ERROR" logs/kaseeder.log
-```
-
-### Performance Metrics
-
-```bash
-# Check memory usage
-ps aux | grep kaseeder
-
-# Monitor network connections
-netstat -tulpn | grep kaseeder
-
-# Check disk usage
-du -sh data/
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-1. **Port Already in Use**:
-   ```bash
-   # Check what's using the port
-   sudo netstat -tulpn | grep :5354
-   
-   # Kill the process
-   sudo kill -9 <PID>
-   ```
-
-2. **Permission Denied**:
-   ```bash
-   # Check file permissions
-   ls -la kaseeder.conf
-   
-   # Fix permissions
-   chmod 644 kaseeder.conf
-   ```
-
-3. **Configuration Errors**:
-   ```bash
-   # Validate configuration
-   ./target/release/kaseeder --config kaseeder.conf --dry-run
-   
-   # Check configuration syntax
-   cat kaseeder.conf | grep -v "^#" | grep -v "^$"
-   ```
-
-### Debug Mode
-
-```bash
-# Enable debug logging
-./target/release/kaseeder --log-level debug
-
-# Check detailed logs
-tail -f logs/kaseeder.log | grep DEBUG
-
-# Monitor network activity
-sudo tcpdump -i any port 5354 or port 3737
-```
-
-### Performance Tuning
+For testnet-11, use this configuration:
 
 ```toml
-# kaseeder.conf
-[performance]
-threads = 8                    # Increase for high-traffic scenarios
-max_addresses = 50000         # Increase for larger networks
-connection_timeout = 10       # Network timeout in seconds
-retry_attempts = 5            # Connection retry attempts
+testnet = true
+net_suffix = 11
+listen = "127.0.0.1:5354"
+grpc_listen = "127.0.0.1:3737"
+app_dir = "./data-testnet-11"
+seeder = "127.0.0.1:16311"
 ```
 
-## 🧪 Testing
+## Usage
 
-### Run Tests
+### Basic Usage
+
+```bash
+# Start with default configuration
+./kaseeder
+
+# Start with custom configuration file
+./kaseeder --config /path/to/kaseeder.conf
+
+# Start for testnet
+./kaseeder --testnet --net-suffix 11 --seeder 127.0.0.1:16311
+```
+
+### Command Line Options
+
+```bash
+./kaseeder --help
+```
+
+Available options:
+- `--config`: Configuration file path
+- `--host`: DNS server hostname
+- `--nameserver`: DNS nameserver
+- `--listen`: DNS server listen address
+- `--grpc-listen`: gRPC server listen address
+- `--app-dir`: Application data directory
+- `--seeder`: Seed node address
+- `--known-peers`: Known peer addresses (comma-separated)
+- `--threads`: Number of crawler threads (1-32)
+- `--testnet`: Enable testnet mode
+- `--net-suffix`: Testnet network suffix (only 11 supported)
+- `--log-level`: Log level (trace, debug, info, warn, error)
+- `--profile`: Enable HTTP profiling on specified port
+
+### DNS Configuration
+
+To create a working setup where the DNSSeeder can provide IPs to kaspad instances, set the following DNS records:
+
+```
+NAME                        TYPE        VALUE
+----                        ----        -----
+[your.domain.name]          A           [your ip address]
+[ns-your.domain.name]       NS          [your.domain.name]
+```
+
+Then redirect DNS traffic on your public IP port 53 to your local DNS seeder port (e.g., 5354).
+
+**Note**: To listen directly on port 53 on most Unix systems, you have to run kaseeder as root, which is discouraged. Instead, use a higher port and redirect traffic.
+
+## Network Ports
+
+- **Mainnet**: 16111
+- **Testnet-10**: 16211
+- **Testnet-11**: 16311 (only supported testnet)
+
+## Development
+
+### Building
+
+```bash
+# Debug build
+cargo build
+
+# Release build
+cargo build --release
+
+# Run tests
+cargo test
+
+# Run with specific features
+cargo run --features profiling
+```
+
+### Testing
 
 ```bash
 # Run all tests
 cargo test
 
 # Run specific test
-cargo test test_config_loading
+cargo test test_dns_record_creation
 
-# Run tests with output
-cargo test -- --nocapture
-
-# Run tests in parallel
-cargo test -- --test-threads=4
+# Run with logging
+RUST_LOG=debug cargo test
 ```
 
-### Integration Testing
+## Architecture
+
+The Rust version maintains the same architecture as the Go version:
+
+- **DNS Server**: Handles DNS queries and responses
+- **Address Manager**: Manages peer addresses and their states
+- **Crawler**: Discovers and validates network peers
+- **gRPC Server**: Provides programmatic API access
+- **Configuration**: Centralized configuration management
+
+## Differences from Go Version
+
+The Rust version is designed to be functionally identical to the Go version:
+
+- Same configuration options and defaults
+- Same DNS response format
+- Same peer discovery and validation logic
+- Same network parameter handling
+- Same file storage format
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Permission denied on port 53**: Use a higher port (e.g., 5354) and redirect traffic
+2. **No peers discovered**: Check your seeder configuration and network connectivity
+3. **DNS queries not working**: Verify your DNS records and port forwarding
+
+### Logs
+
+Check the logs for detailed information:
 
 ```bash
-# Test DNS resolution
-dig @localhost -p 5354 seeder.example.com
+# View error logs
+tail -f logs/kaseeder_error.log
 
-# Test gRPC API
-curl -X GET http://localhost:3737/v1/status
-
-# Test health check
-curl -f http://localhost:3737/health
+# Set log level
+RUST_LOG=debug ./kaseeder
 ```
 
-## 📚 API Reference
+### Network Connectivity
 
-### gRPC Endpoints
+Test your network connectivity:
 
-- `GET /v1/status` - Get service status
-- `GET /v1/peers` - List discovered peers
-- `GET /v1/stats` - Get service statistics
-- `GET /health` - Health check endpoint
+```bash
+# Test DNS server
+dig @127.0.0.1 -p 5354 seed.kaspa.org A
 
-### DNS Records
+# Test gRPC server
+curl http://127.0.0.1:3737/health
+```
 
-- `A` records for IPv4 addresses
-- `AAAA` records for IPv6 addresses
-- `TXT` records for additional metadata
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
 
-### Development Setup
+## License
 
-```bash
-# Install development dependencies
-cargo install cargo-watch
-cargo install cargo-audit
+This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
 
-# Run with hot reload
-cargo watch -x run
+## Acknowledgments
 
-# Check for security vulnerabilities
-cargo audit
-
-# Format code
-cargo fmt
-
-# Lint code
-cargo clippy
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Kaspa Network team for the protocol specification
-- Rust community for the excellent ecosystem
-- Contributors and maintainers
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/your-username/kaseeder/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/kaseeder/discussions)
-- **Documentation**: [Wiki](https://github.com/your-username/kaseeder/wiki)
-
----
-
-**Made with ❤️ by the Kaseeder Team**
+- Based on the original Go implementation by the Kaspa team
+- DNS protocol handling using trust-dns-proto
+- Asynchronous runtime using Tokio

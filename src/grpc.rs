@@ -315,7 +315,7 @@ mod tests {
         let test_app_dir = temp_dir.path().join("test_app");
         let test_app_dir_str = test_app_dir.to_string_lossy().to_string();
         
-        let address_manager = Arc::new(AddressManager::new(&test_app_dir_str).unwrap());
+        let address_manager = Arc::new(AddressManager::new(&test_app_dir_str, 16111).unwrap());
         let _server = GrpcServer::new(address_manager);
         assert!(true); // Verify creation success
     }
@@ -326,7 +326,7 @@ mod tests {
         let test_app_dir = temp_dir.path().join("test_app");
         let test_app_dir_str = test_app_dir.to_string_lossy().to_string();
         
-        let address_manager = Arc::new(AddressManager::new(&test_app_dir_str).unwrap());
+        let address_manager = Arc::new(AddressManager::new(&test_app_dir_str, 16111).unwrap());
         let _server = GrpcServer::new(address_manager);
 
         let addresses = _server.get_addresses(10);

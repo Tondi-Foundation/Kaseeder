@@ -5,7 +5,7 @@ use kaspa_core::time::unix_now;
 use kaspa_p2p_lib::{
     common::ProtocolError,
     make_message,
-    pb::{kaspad_message::Payload, RequestAddressesMessage, VersionMessage},
+    pb::{kaspad_message::Payload, RequestAddressesMessage, VersionMessage, ReadyMessage, AddressesMessage},
     Adaptor, ConnectionInitializer, Hub, IncomingRoute, KaspadHandshake, KaspadMessagePayloadType,
     PeerKey, Router,
 };
@@ -29,7 +29,7 @@ impl KaseederConnectionInitializer {
         addresses_tx: mpsc::Sender<Vec<NetAddress>>,
     ) -> Self {
         let version_message = VersionMessage {
-            protocol_version: 6, // Use Kaspa protocol version 6 (current stable)
+            protocol_version: 0, // Use 0 for auto-negotiation (like Go version)
             services: 0,
             timestamp: unix_now() as i64,
             address: None,
@@ -57,12 +57,12 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
         // 2. Perform handshake with protocol version negotiation
         debug!("Starting handshake with peer");
         
-        // Try different protocol versions if needed
-        let mut current_version = self.version_message.protocol_version;
+        // Simplified protocol version negotiation like Go version
+        let mut current_version = 6; // Start with latest stable version
         let mut peer_version = None;
         
-        // Try up to 5 different protocol versions
-        for attempt in 0..5 {
+        // Try up to 3 different protocol versions (reduced from 5)
+        for attempt in 0..3 {
             let mut version_msg = self.version_message.clone();
             version_msg.protocol_version = current_version;
             
@@ -77,7 +77,7 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
                     break;
                 }
                 Err(e) => {
-                    warn!(
+                    debug!(
                         "Handshake failed with protocol version {} (attempt {}): {}",
                         current_version, attempt + 1, e
                     );
@@ -86,36 +86,31 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
                     current_version = match current_version {
                         6 => 5,   // Try Kaspa v5
                         5 => 4,   // Try Kaspa v4
-                        4 => 3,   // Try Kaspa v3
-                        3 => 2,   // Try Kaspa v2
-                        _ => break, // Give up
+                        _ => break, // Give up after trying 3 versions
                     };
                 }
             }
         }
         
-        let peer_version = peer_version.ok_or_else(|| {
+        let _peer_version = peer_version.ok_or_else(|| {
             ProtocolError::from_reject_message("Failed to establish handshake with any protocol version".to_string())
         })?;
 
-        // 3. Subscribe to address-related messages
-        let addresses_receiver = router.subscribe(vec![KaspadMessagePayloadType::Addresses]);
+        // 3. Subscribe to messages for address collection (avoid duplicate subscriptions)
+        let all_messages_receiver = router.subscribe(vec![
+            KaspadMessagePayloadType::Addresses,
+            KaspadMessagePayloadType::RequestAddresses,
+            KaspadMessagePayloadType::Ping,
+        ]);
 
-        // 4. Send Ready message to complete handshake
+        // 4. Register message flows before Ready exchange (rusty-kaspa style)
+        debug!("Registering message flows before Ready exchange");
+        
+        // 5. Complete handshake with Ready exchange (rusty-kaspa style)
         handshake.exchange_ready_messages().await?;
+        debug!("Ready exchange completed, handshake fully established");
 
-        // 5. Request addresses
-        debug!("Requesting addresses from peer");
-        let request_addresses = make_message!(
-            Payload::RequestAddresses,
-            RequestAddressesMessage {
-                include_all_subnetworks: true,
-                subnetwork_id: None,
-            }
-        );
-        router.enqueue(request_addresses).await?;
-
-        // 6. Start ping-pong handler coroutine (keep connection alive)
+        // 6. Start ping-pong handler to keep connection alive
         let router_clone = router.clone();
         tokio::spawn(async move {
             if let Err(e) = DnsseedNetAdapter::handle_ping_pong(router_clone).await {
@@ -128,11 +123,13 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
         let addresses_tx = self.addresses_tx.clone();
 
         tokio::spawn(async move {
-            if let Err(e) = Self::handle_addresses_response(addresses_receiver, addresses_tx).await
+            if let Err(e) = Self::handle_addresses_response(all_messages_receiver, addresses_tx).await
             {
-                error!("Failed to handle addresses response: {}", e);
+                debug!("Address response handler error: {}", e);
             }
         });
+
+
 
         Ok(())
     }
@@ -140,48 +137,98 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
 
 impl KaseederConnectionInitializer {
     async fn handle_addresses_response(
-        mut addresses_receiver: IncomingRoute,
+        mut all_messages_receiver: IncomingRoute,
         addresses_tx: mpsc::Sender<Vec<NetAddress>>,
     ) -> std::result::Result<(), ProtocolError> {
-        // Wait for address message with timeout
-        tokio::select! {
-            msg_opt = addresses_receiver.recv() => {
-                if let Some(msg) = msg_opt {
-                    if let Some(Payload::Addresses(addresses_msg)) = msg.payload {
-                        debug!("Received {} addresses from peer", addresses_msg.address_list.len());
+        // Wait for address message with timeout, skipping irrelevant messages (like Go version)
+        let timeout = Duration::from_secs(3); // Shorter timeout like Go version
+        let start_time = std::time::Instant::now();
+        
+        loop {
+            if start_time.elapsed() > timeout {
+                debug!("Timeout waiting for addresses from peer (3s)");
+                break;
+            }
+            
+            tokio::select! {
+                msg_opt = all_messages_receiver.recv() => {
+                    if let Some(msg) = msg_opt {
+                        match msg.payload {
+                            Some(Payload::Addresses(addresses_msg)) => {
+                                debug!("Received {} addresses from peer", addresses_msg.address_list.len());
 
-                        // Convert address format
-                        let addresses: Vec<NetAddress> = addresses_msg.address_list
-                            .into_iter()
-                            .filter_map(|addr| {
-                                // Parse IP address bytes
-                                if addr.ip.len() == 4 {
-                                    // IPv4
-                                    let ip_bytes: [u8; 4] = [addr.ip[0], addr.ip[1], addr.ip[2], addr.ip[3]];
-                                    let ipv4 = std::net::Ipv4Addr::from(ip_bytes);
-                                    Some(NetAddress::new(std::net::IpAddr::V4(ipv4), addr.port as u16))
-                                } else if addr.ip.len() == 16 {
-                                    // IPv6
-                                    let mut ip_bytes = [0u8; 16];
-                                    ip_bytes.copy_from_slice(&addr.ip);
-                                    let ipv6 = std::net::Ipv6Addr::from(ip_bytes);
-                                    Some(NetAddress::new(std::net::IpAddr::V6(ipv6), addr.port as u16))
-                                } else {
-                                    warn!("Invalid IP address length: {}", addr.ip.len());
-                                    None
+                                // Convert address format
+                                let addresses: Vec<NetAddress> = addresses_msg.address_list
+                                    .into_iter()
+                                    .filter_map(|addr| {
+                                        // Parse IP address bytes
+                                        if addr.ip.len() == 4 {
+                                            // IPv4
+                                            let ip_bytes: [u8; 4] = [addr.ip[0], addr.ip[1], addr.ip[2], addr.ip[3]];
+                                            let ipv4 = std::net::Ipv4Addr::from(ip_bytes);
+                                            Some(NetAddress::new(std::net::IpAddr::V4(ipv4), addr.port as u16))
+                                        } else if addr.ip.len() == 16 {
+                                            // IPv6
+                                            let mut ip_bytes = [0u8; 16];
+                                            ip_bytes.copy_from_slice(&addr.ip);
+                                            let ipv6 = std::net::Ipv6Addr::from(ip_bytes);
+                                            Some(NetAddress::new(std::net::IpAddr::V6(ipv6), addr.port as u16))
+                                        } else {
+                                            debug!("Invalid IP address length: {}", addr.ip.len());
+                                            None
+                                        }
+                                    })
+                                    .collect();
+
+                                // Send addresses to main thread
+                                if let Err(e) = addresses_tx.send(addresses).await {
+                                    debug!("Failed to send addresses to main thread: {}", e);
                                 }
-                            })
-                            .collect();
-
-                        // Send addresses to main thread
-                        if let Err(e) = addresses_tx.send(addresses).await {
-                            warn!("Failed to send addresses to main thread: {}", e);
+                                
+                                // Successfully received addresses, break the loop
+                                break;
+                            }
+                            Some(Payload::Ping(_)) => {
+                                // Skip ping messages, continue waiting for addresses
+                                debug!("Skipping ping message, waiting for addresses");
+                                continue;
+                            }
+                            Some(Payload::Version(_)) => {
+                                // Skip version messages, continue waiting for addresses
+                                debug!("Skipping version message, waiting for addresses");
+                                continue;
+                            }
+                            Some(Payload::Verack(_)) => {
+                                // Skip verack messages, continue waiting for addresses
+                                debug!("Skipping verack message, waiting for addresses");
+                                continue;
+                            }
+                                                                Some(Payload::RequestAddresses(_)) => {
+                                        // Skip request addresses messages, continue waiting for addresses
+                                        debug!("Skipping request addresses message, waiting for addresses");
+                                        continue;
+                                    }
+                                    Some(Payload::Ready(_)) => {
+                                        // Skip ready messages, continue waiting for addresses
+                                        debug!("Skipping ready message, waiting for addresses");
+                                        continue;
+                                    }
+                            _ => {
+                                // Skip any other message types, continue waiting for addresses
+                                debug!("Skipping other message type, waiting for addresses");
+                                continue;
+                            }
                         }
+                    } else {
+                        // Connection closed
+                        debug!("Message receiver closed");
+                        break;
                     }
                 }
-            }
-            _ = tokio::time::sleep(Duration::from_secs(30)) => {
-                warn!("Timeout waiting for addresses from peer");
+                _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                    // Small sleep to avoid busy waiting
+                    continue;
+                }
             }
         }
 
@@ -223,10 +270,10 @@ impl DnsseedNetAdapter {
     ) -> Result<(VersionMessage, Vec<NetAddress>)> {
         info!("Connecting to peer: {}", address);
 
-        // Implement exponential backoff reconnection strategy with longer timeouts
+        // Implement exponential backoff reconnection strategy with optimized timeouts
         let mut retry_count = 0;
-        let max_retries = 5;  // Increased from 3 to 5
-        let base_delay = Duration::from_secs(2);  // Increased from 1 to 2 seconds
+        let max_retries = 3;  // Reduced from 5 to 3 for faster failure detection
+        let base_delay = Duration::from_secs(1);  // Reduced from 2 to 1 second for faster retry
 
         loop {
             match self.try_connect_peer(address).await {
@@ -309,6 +356,9 @@ impl DnsseedNetAdapter {
         // Get peer node information (including version information)
         let version_message = self.get_peer_version_info(peer_key).await?;
 
+        // Keep connection alive for a bit longer to ensure stability
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
         // Disconnect
         self.adaptor.terminate(peer_key).await;
 
@@ -327,13 +377,13 @@ impl DnsseedNetAdapter {
                         Ok(addresses)
                     }
                     None => {
-                        warn!("Address channel closed for peer {}", peer_key);
+                        debug!("Address channel closed for peer {}", peer_key);
                         Ok(Vec::new())
                     }
                 }
             }
-            _ = tokio::time::sleep(Duration::from_secs(45)) => {  // Increased from 30 to 45 seconds
-                warn!("Timeout waiting for addresses from peer {}", peer_key);
+            _ = tokio::time::sleep(Duration::from_secs(15)) => {  // Reduced to 15 seconds for faster failure
+                debug!("Timeout waiting for addresses from peer {} (15s)", peer_key);
                 Ok(Vec::new())
             }
         }

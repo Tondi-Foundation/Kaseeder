@@ -128,31 +128,12 @@ async fn main() -> Result<()> {
 
     info!("Starting Kaspa DNS Seeder...");
 
-    // Load configuration
-    let config = if let Some(config_path) = &cli.config {
-        Config::load_from_file(config_path)?
-    } else {
-        Config::try_load_default()?
-    };
-
-    // Get diagnose address before moving cli
-    let diagnose_address = cli.diagnose.clone();
-
-    // Apply CLI overrides
-    let config = config.with_cli_overrides(cli.into())?;
-
-    // Display configuration
-    config.display();
-
-    // Validate configuration
-    config.validate()?;
-
-    // Handle diagnose command if specified
-    if let Some(address) = &diagnose_address {
+    // Check if this is a diagnose command first
+    if let Some(address) = &cli.diagnose {
         info!("Running network diagnosis for address: {}", address);
         
-        // Create consensus configuration for diagnosis
-        let consensus_config = create_consensus_config(config.testnet, config.net_suffix);
+        // For diagnosis, use minimal configuration
+        let consensus_config = create_consensus_config(false, 0); // Use mainnet defaults
         
         // Create network adapter for diagnosis
         let net_adapter = kaseeder::netadapter::DnsseedNetAdapter::new(consensus_config)?;
@@ -164,11 +145,27 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Load configuration (only for normal operation)
+    let config = if let Some(config_path) = &cli.config {
+        Config::load_from_file(config_path)?
+    } else {
+        Config::try_load_default()?
+    };
+
+    // Apply CLI overrides
+    let config = config.with_cli_overrides(cli.into())?;
+
+    // Display configuration
+    config.display();
+
+    // Validate configuration
+    config.validate()?;
+
     // Create consensus configuration
     let consensus_config = create_consensus_config(config.testnet, config.net_suffix);
 
     // Create address manager
-    let address_manager = Arc::new(AddressManager::new(&config.app_dir)?);
+    let address_manager = Arc::new(AddressManager::new(&config.app_dir, config.default_port())?);
     address_manager.start();
 
     // Create crawler

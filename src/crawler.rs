@@ -8,7 +8,7 @@ use crate::netadapter::DnsseedNetAdapter;
 use crate::types::NetAddress;
 use kaspa_consensus_core::config::Config as ConsensusConfig;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, Mutex, Semaphore};
 use tracing::{debug, error, info, warn};
 
@@ -79,9 +79,11 @@ impl Crawler {
         Ok(())
     }
 
-    /// Initialize known peers
+    /// Initialize known peers - aligned with Go version logic
     async fn initialize_known_peers(&self) -> Result<()> {
         if let Some(ref known_peers) = self.config.known_peers {
+            info!("Processing {} known peers", known_peers.split(',').count());
+            
             let peers: Vec<NetAddress> = known_peers
                 .split(',')
                 .filter_map(|peer_str| {
@@ -105,66 +107,91 @@ impl Crawler {
                     false, // Do not accept unroutable addresses
                 );
 
-                info!("Added {} known peers", added);
+                info!("Adding {} known peers to address manager", peers.len());
 
-                // Mark known nodes as good
+                // Mark known nodes as good (like Go version)
                 for peer in peers {
+                    info!("Marking peer {}:{} as good", peer.ip, peer.port);
                     self.address_manager.attempt(&peer);
                     self.address_manager.good(&peer, None, None);
                 }
+                
+                info!("Address manager now has {} total nodes", self.address_manager.address_count());
+                info!("Added {} known peers", added);
             }
         }
 
         Ok(())
     }
 
-    /// Main crawl loop (optimized version)
+    /// Main crawl loop - aligned with Go version logic
     async fn creep_loop(&mut self) -> Result<()> {
         let mut batch_tasks = Vec::new();
 
         loop {
-            let start_time = Instant::now();
+            // Get addresses to poll like Go version
+            let peers = self.address_manager.addresses(self.config.threads);
+            info!("Main loop: Addresses() returned {} peers, total nodes: {}", peers.len(), self.address_manager.address_count());
 
-            // Get addresses to poll (batching to reduce lock contention)
-            let batch_size = (self.config.threads as usize).max(20).min(50);
-            let peers = self.address_manager.addresses(batch_size as u8);
+            // Force DNS seeding to test our improvements
+            if self.address_manager.address_count() < 1000 {
+                info!("Forcing DNS seeding to discover more addresses (current: {})", self.address_manager.address_count());
+                self.seed_from_dns().await?;
+                let peers_after_dns = self.address_manager.addresses(self.config.threads);
+                info!("After DNS seeding: Addresses() returned {} peers", peers_after_dns.len());
+            }
 
-            if peers.is_empty() {
-                // If no addresses, try to discover seed nodes from DNS
-                if self.address_manager.address_count() == 0 {
-                    self.seed_from_dns().await?;
+            // If no peers and no addresses at all, try DNS seeding (like Go version)
+            if peers.is_empty() && self.address_manager.address_count() == 0 {
+                info!("No addresses at all, trying DNS seeding...");
+                self.seed_from_dns().await?;
+                let peers_after_dns = self.address_manager.addresses(self.config.threads);
+                info!("After DNS seeding: Addresses() returned {} peers", peers_after_dns.len());
+                
+                // If still no peers, sleep and retry
+                if peers_after_dns.is_empty() {
+                    info!("No stale addresses - waiting 10 seconds before retry");
+                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    continue;
                 }
-
-                // Get addresses again
-                let peers = self.address_manager.addresses(batch_size as u8);
-                if peers.is_empty() {
-                    debug!(
-                        "No addresses to poll, sleeping for {} seconds",
-                        CRAWLER_SLEEP_INTERVAL.as_secs()
-                    );
-                    tokio::time::sleep(CRAWLER_SLEEP_INTERVAL).await;
+            } else if peers.is_empty() {
+                // Check if we have nodes but they're all bad - try DNS seeding to get fresh ones
+                let total_nodes = self.address_manager.address_count();
+                if total_nodes > 0 {
+                    info!("No stale addresses but {} total nodes - trying DNS seeding to get fresh addresses", total_nodes);
+                    self.seed_from_dns().await?;
+                    let peers_after_dns = self.address_manager.addresses(self.config.threads);
+                    info!("After DNS seeding: Addresses() returned {} peers", peers_after_dns.len());
+                    
+                    // If still no peers, sleep and retry
+                    if peers_after_dns.is_empty() {
+                        info!("No stale addresses - waiting 10 seconds before retry");
+                        tokio::time::sleep(Duration::from_secs(10)).await;
+                        continue;
+                    }
+                } else {
+                    info!("No stale addresses - waiting 10 seconds before retry");
+                    tokio::time::sleep(Duration::from_secs(10)).await;
                     continue;
                 }
             }
 
-            // Batch process nodes, using semaphore to control concurrency
+            // Process peers (like Go version)
+            info!("Processing {} peers for polling", peers.len());
+            
             for (i, addr) in peers.iter().enumerate() {
                 let permit = self.semaphore.clone().acquire_owned().await?;
                 let net_adapter = self.net_adapters[i % self.net_adapters.len()].clone();
                 let address = addr.clone();
                 let address_manager = self.address_manager.clone();
                 let config = self.config.clone();
-                let stats = self.stats.clone();
 
                 let task = tokio::spawn(async move {
-                    let poll_start = Instant::now();
-                    let result = Self::poll_single_peer_with_stats(
+                    let result = Self::poll_single_peer(
                         net_adapter,
                         address,
                         address_manager,
                         config,
-                        stats,
-                        poll_start,
                     )
                     .await;
 
@@ -176,60 +203,30 @@ impl Crawler {
                 batch_tasks.push(task);
             }
 
-            // Wait for this batch of tasks to complete and collect results
+            // Wait for all tasks to complete
             let results = futures::future::join_all(batch_tasks.drain(..)).await;
-            let mut successful_polls = 0;
-            let mut failed_polls = 0;
-
+            
             for result in results {
                 match result {
-                    Ok(Ok(_)) => successful_polls += 1,
                     Ok(Err(e)) => {
-                        failed_polls += 1;
-                        debug!("Poll failed: {}", e);
+                        debug!("{}", e);
                     }
                     Err(e) => {
-                        failed_polls += 1;
                         error!("Task join failed: {}", e);
                     }
+                    _ => {}
                 }
             }
-
-            // Update batch processing statistics
-            let batch_duration = start_time.elapsed();
-            let mut stats = self.stats.lock().await;
-            stats.last_poll_batch_size = peers.len();
-            stats.total_polls += successful_polls + failed_polls;
-            stats.successful_polls += successful_polls;
-            stats.failed_polls += failed_polls;
-
-            info!(
-                "Batch completed: {} peers, {} successful, {} failed, took {:?}",
-                peers.len(),
-                successful_polls,
-                failed_polls,
-                batch_duration
-            );
-
-            // Adaptive sleep time
-            let sleep_time = if successful_polls > 0 {
-                CRAWLER_SLEEP_INTERVAL / 2 // Shorten sleep on success
-            } else {
-                CRAWLER_SLEEP_INTERVAL * 2 // Extend sleep on failure
-            };
-
-            tokio::time::sleep(sleep_time).await;
         }
     }
 
-    /// Discover nodes from DNS seed servers
+    /// Discover nodes from DNS seed servers - aligned with Go version dnsseed.SeedFromDNS
     async fn seed_from_dns(&self) -> Result<()> {
-        debug!("Attempting to seed from DNS");
-
         let network_params = self.config.network_params();
         let seed_servers = DnsSeedDiscovery::get_dns_seeders_from_network_params(&network_params);
         let mut discovered_addresses = Vec::new();
 
+        // Query each DNS seed server (like Go version)
         for seed_server in seed_servers {
             match DnsSeedDiscovery::query_seed_server(&seed_server, network_params.default_port())
                 .await
@@ -237,7 +234,7 @@ impl Crawler {
                 Ok(addresses) => {
                     if !addresses.is_empty() {
                         info!(
-                            "Discovered {} addresses from DNS seed server: {}",
+                            "DNS seeding found {} addresses from {}",
                             addresses.len(),
                             seed_server
                         );
@@ -250,21 +247,14 @@ impl Crawler {
             }
         }
 
+        // Add discovered addresses (like Go version)
         if !discovered_addresses.is_empty() {
-            let added = self.address_manager.add_addresses(
-                discovered_addresses.clone(),
+            info!("DNS seeding found {} addresses", discovered_addresses.len());
+            self.address_manager.add_addresses(
+                discovered_addresses,
                 network_params.default_port(),
-                false, // Do not accept unroutable addresses
+                true, // Accept any addresses from DNS seeding
             );
-
-            info!("Added {} addresses from DNS seed discovery", added);
-
-            // Mark discovered addresses as attempted
-            for addr in discovered_addresses {
-                self.address_manager.attempt(&addr);
-            }
-        } else {
-            debug!("No addresses discovered from DNS");
         }
 
         Ok(())

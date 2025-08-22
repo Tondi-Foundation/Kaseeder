@@ -431,7 +431,7 @@ mod tests {
     fn test_structured_logger_creation() -> Result<()> {
         let temp_dir = tempdir()?;
         let mut config = LoggingConfig::default();
-        config.log_dir = temp_dir.path().to_string_lossy().to_string();
+        config.log_dir = temp_dir.path().join("logs").to_string_lossy().to_string();
 
         let logger = StructuredLogger::new(config)?;
         assert!(temp_dir.path().join("logs").exists());

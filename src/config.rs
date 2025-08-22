@@ -21,7 +21,7 @@ impl NetworkParams {
     }
 }
 
-/// Configuration file structure
+/// Configuration file structure - aligned with Go version
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigFile {
     pub host: Option<String>,
@@ -40,9 +40,12 @@ pub struct ConfigFile {
     pub nologfiles: Option<bool>,
     pub error_log_file: Option<String>,
     pub profile: Option<String>,
+    // Additional fields from Go version
+    pub peers: Option<String>, // Alias for known_peers
+    pub default_seeder: Option<String>, // Alias for seeder
 }
 
-/// Application configuration
+/// Application configuration - aligned with Go version
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// DNS server hostname
@@ -57,7 +60,7 @@ pub struct Config {
     pub app_dir: String,
     /// Seed node address
     pub seeder: Option<String>,
-    /// Known peer addresses (comma-separated)
+    /// Known peer addresses (comma-separated list)
     pub known_peers: Option<String>,
     /// Crawler thread count
     pub threads: u8,
@@ -80,13 +83,13 @@ pub struct Config {
 }
 
 impl Config {
-    /// Create a new configuration instance
+    /// Create a new configuration instance - aligned with Go version defaults
     pub fn new() -> Self {
         Self {
             host: "seed.kaspa.org".to_string(),
             nameserver: "ns1.kaspa.org".to_string(),
-            listen: "0.0.0.0:5354".to_string(), // Changed from 53 to 5354 for non-privileged access
-            grpc_listen: "0.0.0.0:3737".to_string(), // Changed from 50051 to 3737 for consistency
+            listen: "127.0.0.1:5354".to_string(), // Changed to match Go version default
+            grpc_listen: "127.0.0.1:3737".to_string(), // Changed to match Go version default
             app_dir: "./data".to_string(),
             seeder: None,
             known_peers: None,
@@ -128,12 +131,12 @@ impl Config {
         // Validate gRPC listen address
         self.validate_socket_addr(&self.grpc_listen, "grpc_listen")?;
 
-        // Validate thread count
-        if self.threads == 0 || self.threads > 64 {
+        // Validate thread count (aligned with Go version: 1-32)
+        if self.threads == 0 || self.threads > 32 {
             return Err(KaseederError::InvalidConfigValue {
                 field: "threads".to_string(),
                 value: self.threads.to_string(),
-                expected: "1-64".to_string(),
+                expected: "1-32".to_string(),
             });
         }
 
@@ -146,13 +149,15 @@ impl Config {
             });
         }
 
-        // Validate testnet suffix
-        if self.testnet && self.net_suffix == 0 {
-            return Err(KaseederError::InvalidConfigValue {
-                field: "net_suffix".to_string(),
-                value: self.net_suffix.to_string(),
-                expected: "non-zero value for testnet".to_string(),
-            });
+        // Validate testnet suffix (aligned with Go version: only support testnet-11)
+        if self.testnet && self.net_suffix != 0 {
+            if self.net_suffix != 11 {
+                return Err(KaseederError::InvalidConfigValue {
+                    field: "net_suffix".to_string(),
+                    value: self.net_suffix.to_string(),
+                    expected: "only testnet-11 (suffix 11) is supported".to_string(),
+                });
+            }
         }
 
         // Validate log level
@@ -171,9 +176,9 @@ impl Config {
             self.validate_peer_list(peers)?;
         }
 
-        // Validate profile port if provided
+        // Validate profile port if provided (aligned with Go version: 1024-65535)
         if let Some(ref profile) = self.profile {
-            self.validate_port(profile, "profile")?;
+            self.validate_profile_port(profile, "profile")?;
         }
 
         Ok(())
@@ -193,20 +198,55 @@ impl Config {
 
     /// Validate address format (IP:port or just IP)
     fn validate_address(&self, addr: &str, field: &str) -> Result<()> {
-        if addr.contains(':') {
-            // IP:port format
-            self.validate_socket_addr(addr, field)?;
-        } else {
-            // Just IP format
-            addr.parse::<IpAddr>().map_err(|_| {
-                KaseederError::InvalidConfigValue {
-                    field: field.to_string(),
-                    value: addr.to_string(),
-                    expected: "valid IP address".to_string(),
-                }
-            })?;
+        // First try to parse as IP address (IPv4 or IPv6)
+        if let Ok(_) = addr.parse::<IpAddr>() {
+            return Ok(());
         }
-        Ok(())
+        
+        // If that fails, check if it's IP:port format
+        if addr.contains(':') {
+            // Try to parse as socket address
+            if let Ok(_) = addr.parse::<SocketAddr>() {
+                return Ok(());
+            }
+            
+            // If socket address parsing fails, try to parse as hostname:port
+            let parts: Vec<&str> = addr.split(':').collect();
+            if parts.len() == 2 {
+                let hostname = parts[0];
+                let port = parts[1];
+                
+                // Validate port
+                self.validate_port(port, field)?;
+                
+                // For hostname validation, we'll be lenient and accept any non-empty string
+                if !hostname.is_empty() {
+                    return Ok(());
+                }
+            }
+            
+            return Err(KaseederError::InvalidConfigValue {
+                field: field.to_string(),
+                value: addr.to_string(),
+                expected: "valid address format (IP:port or hostname:port)".to_string(),
+            });
+        } else {
+            // Just hostname format (no port) - only accept if it looks like a valid hostname
+            // Basic hostname validation: must contain at least one dot and valid characters
+            if !addr.is_empty() && 
+               addr.contains('.') && 
+               addr.chars().all(|c| c.is_alphanumeric() || c == '.' || c == '-') &&
+               !addr.starts_with('.') && 
+               !addr.ends_with('.') {
+                return Ok(());
+            }
+            
+            return Err(KaseederError::InvalidConfigValue {
+                field: field.to_string(),
+                value: addr.to_string(),
+                expected: "valid IP address or hostname".to_string(),
+            });
+        }
     }
 
     /// Validate port number
@@ -224,6 +264,27 @@ impl Config {
                 field: field.to_string(),
                 value: port.to_string(),
                 expected: "non-zero port number".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate profile port (aligned with Go version: 1024-65535)
+    fn validate_profile_port(&self, port: &str, field: &str) -> Result<()> {
+        let port_num: u16 = port.parse().map_err(|_| {
+            KaseederError::InvalidConfigValue {
+                field: field.to_string(),
+                value: port.to_string(),
+                expected: "valid port number (1024-65535)".to_string(),
+            }
+        })?;
+
+        if port_num < 1024 || port_num > 65535 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: field.to_string(),
+                value: port.to_string(),
+                expected: "port number between 1024 and 65535".to_string(),
             });
         }
 
@@ -288,18 +349,22 @@ impl Config {
         if let Some(app_dir) = config_file.app_dir {
             config.app_dir = app_dir;
         }
-        if let Some(seeder) = config_file.seeder {
+        
+        // Handle aliases from Go version
+        if let Some(seeder) = config_file.seeder.or(config_file.default_seeder) {
             config.seeder = Some(seeder);
         }
-        if let Some(known_peers) = config_file.known_peers {
+        if let Some(known_peers) = config_file.known_peers.or(config_file.peers) {
             config.known_peers = Some(known_peers);
         }
+        
         if let Some(threads) = config_file.threads {
             config.threads = threads;
         }
         if let Some(min_proto_ver) = config_file.min_proto_ver {
             config.min_proto_ver = min_proto_ver;
         }
+
         if let Some(min_ua_ver) = config_file.min_ua_ver {
             config.min_ua_ver = Some(min_ua_ver);
         }
@@ -397,16 +462,16 @@ impl Config {
         Ok(self)
     }
 
-    /// Get network parameters
+    /// Get network parameters - aligned with Go version
     pub fn network_params(&self) -> NetworkParams {
         if self.testnet {
             NetworkParams::Testnet {
                 suffix: self.net_suffix,
-                default_port: 16211, // Default testnet-10 port (corrected from rusty-kaspa)
+                default_port: if self.net_suffix == 11 { 16311 } else { 16211 }, // Aligned with Go version
             }
         } else {
             NetworkParams::Mainnet {
-                default_port: 16111, // Default mainnet port (corrected from rusty-kaspa)
+                default_port: 16111, // Default mainnet port
             }
         }
     }
@@ -416,12 +481,16 @@ impl Config {
         self.network_params().default_port()
     }
 
-    /// Get network name
+    /// Get network name - aligned with Go version
     pub fn network_name(&self) -> String {
         if self.testnet {
-            "testnet".to_string()
+            if self.net_suffix == 11 {
+                "kaspa-testnet-11".to_string() // Aligned with Go version
+            } else {
+                "kaspa-testnet".to_string()
+            }
         } else {
-            "mainnet".to_string()
+            "kaspa-mainnet".to_string()
         }
     }
 
@@ -454,6 +523,8 @@ impl Config {
             nologfiles: Some(self.nologfiles),
             error_log_file: self.error_log_file.clone(),
             profile: self.profile.clone(),
+            peers: None, // Don't save aliases
+            default_seeder: None,
         };
 
         let toml_content = toml::to_string_pretty(&config_file)
@@ -508,6 +579,9 @@ impl Config {
         info!("  gRPC Listen: {}", self.grpc_listen);
         info!("  App Directory: {}", self.app_dir);
         info!("  Threads: {}", self.threads);
+        if let Some(ref peers) = self.known_peers {
+            info!("  Known Peers: {}", peers);
+        }
         info!("  Testnet: {}", self.testnet);
         if self.testnet {
             info!("  Network Suffix: {}", self.net_suffix);
@@ -561,8 +635,8 @@ mod tests {
         assert_eq!(config.host, "seed.kaspa.org");
         assert_eq!(config.threads, 8);
         assert!(!config.testnet);
-        assert_eq!(config.listen, "0.0.0.0:5354");
-        assert_eq!(config.grpc_listen, "0.0.0.0:3737");
+        assert_eq!(config.listen, "127.0.0.1:5354");
+        assert_eq!(config.grpc_listen, "127.0.0.1:3737");
     }
 
     #[test]
@@ -581,12 +655,12 @@ mod tests {
     #[test]
     fn test_network_name() {
         let config = Config::new();
-        assert_eq!(config.network_name(), "mainnet");
+        assert_eq!(config.network_name(), "kaspa-mainnet");
 
         let mut testnet_config = Config::new();
         testnet_config.testnet = true;
         testnet_config.net_suffix = 11;
-        assert_eq!(testnet_config.network_name(), "testnet");
+        assert_eq!(testnet_config.network_name(), "kaspa-testnet-11");
     }
 
     #[test]

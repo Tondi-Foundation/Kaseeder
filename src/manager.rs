@@ -9,23 +9,24 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 
-// Address manager constants
+// Address manager constants - aligned with Go version
 const PEERS_FILENAME: &str = "peers.json";
-const DEFAULT_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60); // 24 hours
-const NEW_NODE_POLL_INTERVAL: Duration = Duration::from_secs(5 * 60); // New node poll interval: 5 minutes (reduced from 30 minutes)
+const DEFAULT_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(60 * 60); // 1 hour (same as Go version)
+const DEFAULT_STALE_BAD_TIMEOUT: Duration = Duration::from_secs(2 * 60 * 60); // 2 hours (same as Go version)
+const NEW_NODE_POLL_INTERVAL: Duration = Duration::from_secs(5 * 60); // New node poll interval: 5 minutes
 
 // Development mode constants (for local testing)
 #[cfg(debug_assertions)]
-const DEV_NODE_POLL_INTERVAL: Duration = Duration::from_secs(30); // 30 seconds for development
+const DEV_NODE_POLL_INTERVAL: Duration = Duration::from_secs(5); // 5 seconds for development
 #[cfg(debug_assertions)]
-const DEV_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(5 * 60); // 5 minutes for development
+const DEV_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(30); // 30 seconds for development
 
 const QUALITY_DECAY_FACTOR: f64 = 0.95; // Quality score decay factor
 const MAX_QUALITY_SCORE: f64 = 1.0; // Maximum quality score
 const MIN_QUALITY_SCORE: f64 = 0.0; // Minimum quality score
 const PRUNE_EXPIRE_TIMEOUT: Duration = Duration::from_secs(8 * 60 * 60); // 8 hours, same as Go version
-const PRUNE_ADDRESS_INTERVAL: Duration = Duration::from_secs(60 * 60); // 1 hour
-const DUMP_ADDRESS_INTERVAL: Duration = Duration::from_secs(10 * 60); // 10 minutes
+const PRUNE_ADDRESS_INTERVAL: Duration = Duration::from_secs(60); // 1 minute (same as Go version)
+const DUMP_ADDRESS_INTERVAL: Duration = Duration::from_secs(2 * 60); // 2 minutes (same as Go version)
 
 /// Node status with quality metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,9 +127,9 @@ impl Node {
         // Use different intervals for development vs production
         #[cfg(debug_assertions)]
         let (good_interval, medium_interval, poor_interval) = (
-            Duration::from_secs(60),   // 1 minute for good nodes in dev
-            Duration::from_secs(300),  // 5 minutes for medium nodes in dev
-            Duration::from_secs(600)   // 10 minutes for poor nodes in dev
+            Duration::from_secs(5),    // 5 seconds for good nodes in dev
+            Duration::from_secs(10),   // 10 seconds for medium nodes in dev
+            Duration::from_secs(30)    // 30 seconds for poor nodes in dev
         );
         #[cfg(not(debug_assertions))]
         let (good_interval, medium_interval, poor_interval) = (
@@ -158,11 +159,12 @@ pub struct AddressManager {
     peers_file: String,
     quit_tx: mpsc::Sender<()>,
     stats: Arc<CrawlerStats>,
+    default_port: u16, // Add default port for network
 }
 
 impl AddressManager {
     /// Create a new address manager
-    pub fn new(app_dir: &str) -> Result<Self> {
+    pub fn new(app_dir: &str, default_port: u16) -> Result<Self> {
         let peers_file = std::path::Path::new(app_dir).join(PEERS_FILENAME);
         let peers_file = peers_file.to_string_lossy().to_string();
 
@@ -178,6 +180,7 @@ impl AddressManager {
             peers_file,
             quit_tx,
             stats: Arc::new(CrawlerStats::default()),
+            default_port,
         };
 
         // Load saved nodes
@@ -226,70 +229,77 @@ impl AddressManager {
         count
     }
 
-    /// Get addresses that need to be retested with quality-based selection
+    /// Get addresses that need to be retested - aligned with Go version logic
     pub fn addresses(&self, threads: u8) -> Vec<NetAddress> {
         let mut addresses = Vec::new();
         let max_count = threads as usize * 3;
 
-        // Collect candidates with quality filtering
-        let mut candidates: Vec<_> = self.nodes
+        // First pass: look for stale nodes (like Go version)
+        let mut stale_candidates: Vec<_> = self.nodes
             .iter()
             .filter(|entry| {
                 let node = entry.value();
-                // Always allow new nodes (never connected) to be attempted
-                if node.last_success.eq(&UNIX_EPOCH) {
-                    return true;
-                }
-                // For existing nodes, check if they should be attempted
-                node.should_attempt_connection() && self.is_stale(node)
+                self.is_stale(node)
             })
             .collect();
 
-        // Log candidate information for debugging
-        let new_nodes = candidates.iter().filter(|entry| entry.value().last_success.eq(&UNIX_EPOCH)).count();
-        let existing_nodes = candidates.len() - new_nodes;
-        debug!("Found {} candidates: {} new nodes, {} existing nodes", candidates.len(), new_nodes, existing_nodes);
-
-        // Sort by priority: new nodes first, then by quality score
-        candidates.sort_by(|a, b| {
-            let node_a = a.value();
-            let node_b = b.value();
-            
-            // Prioritize new nodes (never connected) - they get highest priority
-            match (node_a.last_success.eq(&UNIX_EPOCH), node_b.last_success.eq(&UNIX_EPOCH)) {
-                (true, false) => std::cmp::Ordering::Less,  // a is new, b is not
-                (false, true) => std::cmp::Ordering::Greater, // b is new, a is not
-                _ => {
-                    // Both are existing nodes, sort by quality score (higher first)
-                    node_b.quality_score.partial_cmp(&node_a.quality_score)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                }
-            }
+        // Sort stale candidates by last attempt time (oldest first)
+        stale_candidates.sort_by(|a, b| {
+            a.value().last_attempt.cmp(&b.value().last_attempt)
         });
 
-        // Take the best candidates
-        for candidate in candidates.into_iter().take(max_count) {
-            addresses.push(candidate.address.clone());
+        // Add stale candidates first
+        for candidate in stale_candidates.into_iter().take(max_count) {
+            addresses.push(candidate.value().address.clone());
         }
 
-        info!("Selected {} addresses for crawling (quality-filtered): {} new, {} existing", 
-              addresses.len(), 
-              addresses.iter().filter(|addr| {
-                  let key = format!("{}:{}", addr.ip, addr.port);
-                  if let Some(node) = self.nodes.get(&key) {
-                      node.last_success.eq(&UNIX_EPOCH)
-                  } else {
-                      false
-                  }
-              }).count(),
-              addresses.len() - addresses.iter().filter(|addr| {
-                  let key = format!("{}:{}", addr.ip, addr.port);
-                  if let Some(node) = self.nodes.get(&key) {
-                      node.last_success.eq(&UNIX_EPOCH)
-                  } else {
-                      false
-                  }
-              }).count());
+        // If we still need more addresses, add some good nodes
+        if addresses.len() < max_count {
+            let remaining_count = max_count - addresses.len();
+            let mut good_candidates: Vec<_> = self.nodes
+                .iter()
+                .filter(|entry| {
+                    let node = entry.value();
+                    let addr_key = format!("{}:{}", node.address.ip, node.address.port);
+                    // Don't include nodes already selected
+                    !addresses.iter().any(|addr| format!("{}:{}", addr.ip, addr.port) == addr_key) &&
+                    self.is_good(node)
+                })
+                .collect();
+
+            // Sort good candidates by last attempt time
+            good_candidates.sort_by(|a, b| {
+                a.value().last_attempt.cmp(&b.value().last_attempt)
+            });
+
+            for candidate in good_candidates.into_iter().take(remaining_count) {
+                addresses.push(candidate.value().address.clone());
+            }
+        }
+
+        // Log detailed status for debugging
+        let mut good_count = 0;
+        let mut stale_count = 0;
+        let mut bad_count = 0;
+        let mut new_count = 0;
+
+        for entry in self.nodes.iter() {
+            let node = entry.value();
+            if node.last_success.eq(&UNIX_EPOCH) {
+                new_count += 1;
+            } else if self.is_good(node) {
+                good_count += 1;
+            } else if self.is_stale(node) {
+                stale_count += 1;
+            } else {
+                bad_count += 1;
+            }
+        }
+
+        debug!("Node status: Good:{} Stale:{} Bad:{} New:{}", good_count, stale_count, bad_count, new_count);
+        debug!("Found {} candidates total", addresses.len());
+        info!("Selected {} addresses for crawling", addresses.len());
+        
         addresses
     }
 
@@ -331,6 +341,10 @@ impl AddressManager {
     ) -> Vec<NetAddress> {
         let mut addresses = Vec::new();
         let mut count = 0;
+        let mut total_nodes = 0;
+        let mut good_nodes = 0;
+        let mut stale_nodes = 0;
+        let mut bad_nodes = 0;
 
         // Only support A and AAAA records
         if qtype != 1 && qtype != 28 {
@@ -339,10 +353,7 @@ impl AddressManager {
         }
 
         for entry in self.nodes.iter() {
-            if count >= DEFAULT_MAX_ADDRESSES {
-                break;
-            }
-
+            total_nodes += 1;
             let node = entry.value();
 
             // Check subnet
@@ -364,14 +375,23 @@ impl AddressManager {
                 continue;
             }
 
-            // Check node status
-            if !self.is_good(node) {
-                continue;
+            // Check node status - allow both good and stale nodes for DNS queries
+            // This ensures DNS queries can return addresses even when nodes are still being evaluated
+            if self.is_good(node) {
+                good_nodes += 1;
+                addresses.push(node.address.clone());
+                count += 1;
+            } else if self.is_stale(node) {
+                stale_nodes += 1;
+                addresses.push(node.address.clone());
+                count += 1;
+            } else {
+                bad_nodes += 1;
             }
-
-            addresses.push(node.address.clone());
-            count += 1;
         }
+
+        info!("DNS query: qtype={}, total_nodes={}, good={}, stale={}, bad={}, returned={}", 
+               qtype, total_nodes, good_nodes, stale_nodes, bad_nodes, addresses.len());
 
         addresses
     }
@@ -465,12 +485,6 @@ impl AddressManager {
 
     /// Save addresses to file
     fn save_peers(&self) {
-        let nodes: Vec<_> = self
-            .nodes
-            .iter()
-            .map(|entry| (entry.key().clone(), entry.value().clone()))
-            .collect();
-
         // Ensure the directory exists before writing files
         if let Some(parent_dir) = std::path::Path::new(&self.peers_file).parent() {
             if let Err(e) = std::fs::create_dir_all(parent_dir) {
@@ -479,12 +493,24 @@ impl AddressManager {
             }
         }
 
+        let nodes: Vec<_> = self
+            .nodes
+            .iter()
+            .map(|entry| (entry.key().clone(), entry.value().clone()))
+            .collect();
+
         // Create temporary file
         let tmp_file = format!("{}.new", self.peers_file);
 
-        if let Err(e) = std::fs::write(&tmp_file, serde_json::to_string(&nodes).unwrap_or_default())
-        {
+        // Check if we can write to the temporary file
+        if let Err(e) = std::fs::write(&tmp_file, serde_json::to_string(&nodes).unwrap_or_default()) {
             error!("Failed to write temporary file {}: {}", tmp_file, e);
+            return;
+        }
+
+        // Verify temporary file was created and has content
+        if !std::path::Path::new(&tmp_file).exists() {
+            error!("Temporary file {} was not created", tmp_file);
             return;
         }
 
@@ -494,9 +520,12 @@ impl AddressManager {
                 "Failed to rename {} to {}: {}",
                 tmp_file, self.peers_file, e
             );
-            if let Err(e) = std::fs::remove_file(&tmp_file) {
-                error!("Failed to remove temporary file {}: {}", tmp_file, e);
+            // Try to clean up temporary file, but don't fail if cleanup fails
+            if let Err(cleanup_e) = std::fs::remove_file(&tmp_file) {
+                error!("Failed to remove temporary file {}: {}", tmp_file, cleanup_e);
             }
+        } else {
+            debug!("Successfully saved {} nodes to {}", nodes.len(), self.peers_file);
         }
     }
 
@@ -525,15 +554,26 @@ impl AddressManager {
         last_seen_elapsed > PRUNE_EXPIRE_TIMEOUT
     }
 
-    /// Check if node is good
+    /// Check if node is good - aligned with Go version
     fn is_good(&self, node: &Node) -> bool {
+        // Check if it's not a non-default port (like Go version)
+        if self.is_non_default_port(&node.address) {
+            return false;
+        }
+
         let now = SystemTime::now();
         let last_success_elapsed = now.duration_since(node.last_success).unwrap_or_default();
 
-        last_success_elapsed < DEFAULT_STALE_GOOD_TIMEOUT
+        // Use development vs production timeouts
+        #[cfg(debug_assertions)]
+        let stale_timeout = DEV_STALE_GOOD_TIMEOUT;
+        #[cfg(not(debug_assertions))]
+        let stale_timeout = DEFAULT_STALE_GOOD_TIMEOUT;
+
+        last_success_elapsed < stale_timeout
     }
 
-    /// Check if node is stale
+    /// Check if node is stale - aligned with Go version
     fn is_stale(&self, node: &Node) -> bool {
         let now = SystemTime::now();
         let last_attempt_elapsed = now.duration_since(node.last_attempt).unwrap_or_default();
@@ -544,20 +584,23 @@ impl AddressManager {
             if node.last_attempt == node.last_seen {
                 return true; // New node is immediately available for polling
             }
-            // For attempted new nodes, use shorter interval
+            // For attempted new nodes, use much shorter interval to allow more nodes to be stale
             #[cfg(debug_assertions)]
-            let poll_interval = DEV_NODE_POLL_INTERVAL;
+            let poll_interval = Duration::from_secs(1); // 1 second in debug mode
             #[cfg(not(debug_assertions))]
-            let poll_interval = NEW_NODE_POLL_INTERVAL;
+            let poll_interval = Duration::from_secs(5); // 5 seconds in production
             
             return last_attempt_elapsed > poll_interval;
         }
 
         // For nodes that have successfully connected, use the appropriate timeout
-        #[cfg(debug_assertions)]
-        let stale_timeout = DEV_STALE_GOOD_TIMEOUT;
-        #[cfg(not(debug_assertions))]
-        let stale_timeout = DEFAULT_STALE_GOOD_TIMEOUT;
+        // Aligned with Go version logic
+        let stale_timeout = if last_attempt_elapsed > Duration::from_secs(24 * 60 * 60) {
+            // If last attempt was more than 24 hours ago, use shorter timeout
+            DEFAULT_STALE_GOOD_TIMEOUT // 1 hour
+        } else {
+            DEFAULT_STALE_BAD_TIMEOUT // 2 hours
+        };
         
         last_attempt_elapsed > stale_timeout
     }
@@ -603,6 +646,12 @@ impl AddressManager {
         }
     }
 
+    /// Check if address is non-default port (like Go version)
+    fn is_non_default_port(&self, address: &NetAddress) -> bool {
+        // Check against the network's default port from configuration
+        address.port != self.default_port
+    }
+
     /// Shutdown address manager
     pub async fn shutdown(&self) {
         let _ = self.quit_tx.send(()).await;
@@ -621,6 +670,7 @@ impl Clone for AddressManager {
             peers_file: self.peers_file.clone(),
             quit_tx: self.quit_tx.clone(),
             stats: Arc::clone(&self.stats),
+            default_port: self.default_port,
         }
     }
 }
@@ -648,7 +698,7 @@ mod tests {
         assert!(!test_app_dir.exists());
 
         // Create address manager - this should create the directory
-        let manager = AddressManager::new(&test_app_dir_str).unwrap();
+        let manager = AddressManager::new(&test_app_dir_str, 16111).unwrap();
 
         // Verify the directory was created
         assert!(test_app_dir.exists());
@@ -675,7 +725,7 @@ mod tests {
         assert!(!test_app_dir.exists());
 
         // Create address manager - this should create the nested directory
-        let manager = AddressManager::new(&test_app_dir_str).unwrap();
+        let manager = AddressManager::new(&test_app_dir_str, 16111).unwrap();
 
         // Verify the nested directory was created
         assert!(test_app_dir.exists());

@@ -1,44 +1,53 @@
 # Kaspa DNS Seeder Configuration File
-# This file demonstrates the new configuration options and validation rules
+# This file contains configuration options for the Kaspa DNS seeder
+# Aligned with Go version dnsseeder configuration
 
-# DNS Server Configuration
+# DNS server configuration
 host = "seed.kaspa.org"
 nameserver = "ns1.kaspa.org"
-listen = "0.0.0.0:5354"  # Changed from 53 for non-privileged access
+listen = "127.0.0.1:5354"
 
-# gRPC Server Configuration
-grpc_listen = "0.0.0.0:3737"  # Changed from 50051 for consistency
+# gRPC server configuration
+grpc_listen = "127.0.0.1:3737"
 
-# Application Configuration
+# Application directory for data storage
 app_dir = "./data"
-threads = 8  # Must be between 1-64
-min_proto_ver = 0  # Must be between 0-65535
 
-# Network Configuration
+# Seed node address (IP:port or just IP)
+# If not specified, will use DNS seed discovery
+# seeder = "192.168.1.100:16111"
+# default_seeder = "192.168.1.100:16111"  # Alternative name (Go version compatibility)
+
+# Known peer addresses (comma-separated list)
+# These will be used as fallback if DNS discovery fails
+# known_peers = "192.168.1.100:16111,192.168.1.101:16111"
+# peers = "192.168.1.100:16111,192.168.1.101:16111"  # Alternative name (Go version compatibility)
+
+# Number of crawler threads (1-32, aligned with Go version)
+threads = 8
+
+# Minimum protocol version (0 = accept all)
+min_proto_ver = 0
+
+# Minimum user agent version (optional)
+# min_ua_ver = "0.12.0"
+
+# Network configuration
 testnet = false
-net_suffix = 0  # Must be non-zero if testnet=true
+net_suffix = 0  # Only testnet-11 (suffix 11) is supported, aligned with Go version
 
-# Logging Configuration
-log_level = "info"  # Must be one of: trace, debug, info, warn, error
+# Logging configuration
+log_level = "info"
 nologfiles = false
+error_log_file = "logs/kaseeder_error.log"
 
-# Optional Configuration
-# seeder = "127.0.0.1:16110"  # Seed node address (IP:port or just IP)
-# known_peers = "192.168.1.1:16110,192.168.1.2:16110"  # Comma-separated peer list
-# min_ua_ver = "0.12.0"  # Minimum user agent version
-# profile = "8080"  # Performance profiling port (1-65535)
-# error_log_file = "logs/kaseeder_error.log"
+# Performance profiling (optional, port must be between 1024-65535, aligned with Go version)
+# profile = "6060"
 
-# Configuration Validation Rules:
-# - host: Must be non-empty
-# - nameserver: Must be non-empty
-# - listen: Must be valid socket address (IP:port)
-# - grpc_listen: Must be valid socket address (IP:port)
-# - threads: Must be between 1-64
-# - min_proto_ver: Must be between 0-65535
-# - testnet: If true, net_suffix must be non-zero
-# - log_level: Must be valid log level
-# - app_dir: Must be valid directory path
-# - seeder: If provided, must be valid address format
-# - known_peers: If provided, must be valid comma-separated address list
-# - profile: If provided, must be valid port number (1-65535)
+# Example for testnet-11 configuration:
+# testnet = true
+# net_suffix = 11
+# listen = "127.0.0.1:5354"
+# grpc_listen = "127.0.0.1:3737"
+# app_dir = "./data-testnet-11"
+# seeder = "127.0.0.1:16311"
