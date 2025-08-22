@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::errors::Result;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;

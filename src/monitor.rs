@@ -1,5 +1,5 @@
+use crate::errors::Result;
 use crate::logging::{HealthStatus, LoggingStats};
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -99,30 +99,29 @@ impl SystemMonitor {
         health.clear_issues();
 
         // Check CPU usage
-        if metrics.cpu_usage > 90.0 {
-            health.add_error("High CPU usage detected".to_string());
-        } else if metrics.cpu_usage > 70.0 {
-            health.add_warning("Elevated CPU usage detected".to_string());
+        if metrics.cpu_usage > 80.0 {
+            health.add_issue("High CPU usage detected".to_string());
+        } else if metrics.cpu_usage > 60.0 {
+            health.add_issue("Elevated CPU usage detected".to_string());
         }
 
         // Check memory usage
-        if metrics.memory_usage > 1024 * 1024 * 1024 {
-            // 1GB
-            health.add_warning("High memory usage detected".to_string());
+        if metrics.memory_usage > 1024 * 1024 * 1024 { // 1GB
+            health.add_issue("High memory usage detected".to_string());
         }
 
         // Check response time
-        if metrics.avg_response_time_ms > 5000.0 {
-            health.add_error("High response time detected".to_string());
-        } else if metrics.avg_response_time_ms > 2000.0 {
-            health.add_warning("Elevated response time detected".to_string());
+        if metrics.avg_response_time_ms > 1000.0 {
+            health.add_issue("High response time detected".to_string());
+        } else if metrics.avg_response_time_ms > 500.0 {
+            health.add_issue("Elevated response time detected".to_string());
         }
 
+        // Log health status
         info!(
-            "Health check completed: healthy={}, errors={}, warnings={}",
-            health.is_healthy,
-            health.errors.len(),
-            health.warnings.len()
+            "Health check completed. Issues: {}, Uptime: {}s",
+            health.issues.len(),
+            health.uptime_seconds
         );
 
         Ok(())
@@ -200,7 +199,17 @@ impl SystemMonitor {
         let performance = self.performance_metrics.lock().await.clone();
         let logging_stats = {
             let guard = self.logging_stats.lock().await;
-            guard.clone()
+            let stats = LoggingStats {
+                total_logs: guard.total_logs,
+                error_logs: guard.error_logs,
+                warning_logs: guard.warning_logs,
+                info_logs: guard.info_logs,
+                debug_logs: guard.debug_logs,
+                trace_logs: guard.trace_logs,
+                last_log_time: guard.last_log_time,
+                log_rate_per_minute: guard.log_rate_per_minute,
+            };
+            stats
         };
 
         SystemStatusReport {
@@ -215,7 +224,7 @@ impl SystemMonitor {
     /// Record log statistics
     pub async fn record_log(&self, level: &tracing::Level) {
         let mut stats = self.logging_stats.lock().await;
-        stats.record_log(level);
+        stats.increment_log(*level);
     }
 
     /// Get health status

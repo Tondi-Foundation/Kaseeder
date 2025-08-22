@@ -1,5 +1,5 @@
+use crate::errors::{KaseederError, Result};
 use crate::types::NetAddress;
-use anyhow::Result;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -78,17 +78,17 @@ impl DnsServer {
         let request = Message::from_vec(request_data)?;
 
         if request.header().message_type() != MessageType::Query {
-            return Err(anyhow::anyhow!("Not a query message"));
+            return Err(KaseederError::Dns("Not a query message".to_string()));
         }
 
         if request.header().op_code() != OpCode::Query {
-            return Err(anyhow::anyhow!("Not a standard query"));
+            return Err(KaseederError::Dns("Not a standard query".to_string()));
         }
 
         let _queries = request.query();
         let query = request
             .query()
-            .ok_or_else(|| anyhow::anyhow!("No query in DNS request"))?;
+            .ok_or_else(|| KaseederError::Dns("No query in DNS request".to_string()))?;
 
         let domain_name = query.name();
         let query_type = query.query_type();
@@ -99,8 +99,8 @@ impl DnsServer {
         );
 
         // Check if domain belongs to us
-        if !self.is_our_domain(domain_name) {
-            return Err(anyhow::anyhow!("Domain not served by this server"));
+        if domain_name.to_string() != self.hostname {
+            return Err(KaseederError::Dns("Domain not served by this server".to_string()));
         }
 
         // Create response

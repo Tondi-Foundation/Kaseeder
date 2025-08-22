@@ -1,5 +1,5 @@
+use crate::errors::Result;
 use crate::types::NetAddress;
-use anyhow::Result;
 use std::net::ToSocketAddrs;
 use tracing::warn;
 

@@ -1,12 +1,13 @@
+use crate::constants::DEFAULT_MAX_ADDRESSES;
+use crate::errors::Result;
 use crate::types::{CrawlerStats, NetAddress};
-use anyhow::Result;
+use tracing::{debug, error, info};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
-use tracing::{debug, error, info};
 
 /// Address manager configuration constants
 const PEERS_FILENAME: &str = "peers.json";
@@ -15,9 +16,8 @@ const NEW_NODE_POLL_INTERVAL: Duration = Duration::from_secs(30 * 60); // New no
 const PRUNE_EXPIRE_TIMEOUT: Duration = Duration::from_secs(8 * 60 * 60); // 8 hours, same as Go version
 const PRUNE_ADDRESS_INTERVAL: Duration = Duration::from_secs(60 * 60); // 1 hour
 const DUMP_ADDRESS_INTERVAL: Duration = Duration::from_secs(10 * 60); // 10 minutes
-const DEFAULT_MAX_ADDRESSES: usize = 2000;
 
-/// Node status
+/// Node status with quality metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
     pub address: NetAddress,
@@ -27,6 +27,11 @@ pub struct Node {
     pub user_agent: Option<String>,
     pub subnetwork_id: Option<String>,
     pub services: u64,
+    // Quality metrics
+    pub connection_attempts: u32,
+    pub successful_connections: u32,
+    pub last_error: Option<String>,
+    pub quality_score: f32, // 0.0 to 1.0
 }
 
 impl Node {
@@ -40,11 +45,86 @@ impl Node {
             user_agent: None,
             subnetwork_id: None,
             services: 0,
+            connection_attempts: 0,
+            successful_connections: 0,
+            last_error: None,
+            quality_score: 0.5, // Start with neutral score
         }
     }
 
     pub fn key(&self) -> String {
         format!("{}:{}", self.address.ip, self.address.port)
+    }
+
+    /// Update connection attempt statistics
+    pub fn record_connection_attempt(&mut self, success: bool, error: Option<String>) {
+        self.connection_attempts += 1;
+        self.last_attempt = SystemTime::now();
+        
+        if success {
+            self.successful_connections += 1;
+            self.last_success = SystemTime::now();
+            self.last_error = None;
+        } else {
+            self.last_error = error;
+        }
+        
+        // Update quality score
+        self.update_quality_score();
+    }
+
+    /// Calculate quality score based on success rate and recency
+    fn update_quality_score(&mut self) {
+        if self.connection_attempts == 0 {
+            self.quality_score = 0.5;
+            return;
+        }
+
+        // Base success rate (0.0 to 1.0)
+        let success_rate = self.successful_connections as f32 / self.connection_attempts as f32;
+        
+        // Time decay factor (recent successes are weighted more)
+        let time_factor = if self.last_success > UNIX_EPOCH {
+            let hours_since_success = SystemTime::now()
+                .duration_since(self.last_success)
+                .unwrap_or_default()
+                .as_secs() as f32 / 3600.0;
+            
+            // Decay over 24 hours
+            (1.0 - (hours_since_success / 24.0)).max(0.1)
+        } else {
+            0.1 // Never connected successfully
+        };
+
+        // Attempt penalty (too many failed attempts reduce score)
+        let attempt_penalty = if self.connection_attempts > 10 {
+            0.8 // Reduce score for nodes with many failed attempts
+        } else {
+            1.0
+        };
+
+        self.quality_score = (success_rate * time_factor * attempt_penalty).min(1.0).max(0.0);
+    }
+
+    /// Check if node should be attempted based on quality and timing
+    pub fn should_attempt_connection(&self) -> bool {
+        // Don't attempt if quality is too low
+        if self.quality_score < 0.1 {
+            return false;
+        }
+
+        // Don't attempt too frequently for low-quality nodes
+        let min_interval = if self.quality_score > 0.7 {
+            Duration::from_secs(300) // 5 minutes for good nodes
+        } else if self.quality_score > 0.3 {
+            Duration::from_secs(1800) // 30 minutes for medium nodes
+        } else {
+            Duration::from_secs(3600) // 1 hour for poor nodes
+        };
+
+        SystemTime::now()
+            .duration_since(self.last_attempt)
+            .unwrap_or_default() >= min_interval
     }
 }
 
@@ -122,34 +202,61 @@ impl AddressManager {
         count
     }
 
-    /// Get addresses that need to be retested
+    /// Get addresses that need to be retested with quality-based selection
     pub fn addresses(&self, threads: u8) -> Vec<NetAddress> {
         let mut addresses = Vec::new();
         let max_count = threads as usize * 3;
-        let mut count = 0;
 
-        for entry in self.nodes.iter() {
-            if count >= max_count {
-                break;
-            }
+        // Collect candidates with quality filtering
+        let mut candidates: Vec<_> = self.nodes
+            .iter()
+            .filter(|entry| {
+                let node = entry.value();
+                node.should_attempt_connection() && 
+                (node.last_success.eq(&UNIX_EPOCH) || self.is_stale(node))
+            })
+            .collect();
 
-            let node = entry.value();
+        // Sort by quality score and priority
+        candidates.sort_by(|a, b| {
+            let node_a = a.value();
+            let node_b = b.value();
             
-                // First process new nodes (nodes that have never successfully connected)
-            if node.last_success.eq(&UNIX_EPOCH) {
-                addresses.push(node.address.clone());
-                count += 1;
-                continue;
+            // Prioritize new nodes (never connected)
+            match (node_a.last_success.eq(&UNIX_EPOCH), node_b.last_success.eq(&UNIX_EPOCH)) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => {
+                    // Then sort by quality score
+                    node_b.quality_score.partial_cmp(&node_a.quality_score)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                }
             }
-            
-            // Then process expired nodes
-            if self.is_stale(node) {
-                addresses.push(node.address.clone());
-                count += 1;
-            }
+        });
+
+        // Take the best candidates
+        for candidate in candidates.into_iter().take(max_count) {
+            addresses.push(candidate.address.clone());
         }
 
+        info!("Selected {} addresses for crawling (quality-filtered)", addresses.len());
         addresses
+    }
+
+    /// Record connection attempt result for a node
+    pub fn record_connection_result(&self, address: &NetAddress, success: bool, error: Option<String>) {
+        let key = format!("{}:{}", address.ip, address.port);
+        if let Some(mut node) = self.nodes.get_mut(&key) {
+            node.record_connection_attempt(success, error.clone());
+            
+            if success {
+                debug!("Node {}:{} connection successful, quality score: {:.2}", 
+                       address.ip, address.port, node.quality_score);
+            } else {
+                debug!("Node {}:{} connection failed: {:?}, quality score: {:.2}", 
+                       address.ip, address.port, error, node.quality_score);
+            }
+        }
     }
 
     /// Get the total number of addresses

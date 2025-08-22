@@ -1,5 +1,5 @@
+use crate::errors::{KaseederError, Result};
 use crate::types::NetAddress;
-use anyhow::Result;
 use kaspa_consensus_core::config::Config as ConsensusConfig;
 use kaspa_core::time::unix_now;
 use kaspa_p2p_lib::{
@@ -49,7 +49,7 @@ impl KaseederConnectionInitializer {
 
 #[async_trait]
 impl ConnectionInitializer for KaseederConnectionInitializer {
-    async fn initialize_connection(&self, router: Arc<Router>) -> Result<(), ProtocolError> {
+    async fn initialize_connection(&self, router: Arc<Router>) -> std::result::Result<(), ProtocolError> {
         // 1. Subscribe to handshake messages and start the router
         let mut handshake = KaspadHandshake::new(&router);
         router.start();
@@ -106,7 +106,7 @@ impl KaseederConnectionInitializer {
     async fn handle_addresses_response(
         mut addresses_receiver: IncomingRoute,
         addresses_tx: mpsc::Sender<Vec<NetAddress>>,
-    ) -> Result<(), ProtocolError> {
+    ) -> std::result::Result<(), ProtocolError> {
         // Wait for address message with timeout
         tokio::select! {
             msg_opt = addresses_receiver.recv() => {
@@ -204,12 +204,12 @@ impl DnsseedNetAdapter {
                 Err(e) => {
                     retry_count += 1;
                     if retry_count >= max_retries {
-                        return Err(anyhow::anyhow!(
+                        return Err(KaseederError::ConnectionFailed(format!(
                             "Failed to connect to peer {} after {} retries: {}",
                             address,
                             max_retries,
                             e
-                        ));
+                        )));
                     }
 
                     let delay = base_delay * 2_u32.pow(retry_count as u32 - 1);
@@ -241,16 +241,16 @@ impl DnsseedNetAdapter {
                 // Classify error types
                 match e {
                     kaspa_p2p_lib::ConnectionError::ProtocolError(_) => {
-                        anyhow::anyhow!("Protocol error connecting to {}: {}", address, e)
+                        KaseederError::Protocol(format!("Protocol error connecting to {}: {}", address, e))
                     }
                     kaspa_p2p_lib::ConnectionError::NoAddress => {
-                        anyhow::anyhow!("Invalid address format for {}: {}", address, e)
+                        KaseederError::InvalidAddress(format!("Invalid address format for {}: {}", address, e))
                     }
                     kaspa_p2p_lib::ConnectionError::IoError(_) => {
-                        anyhow::anyhow!("I/O error connecting to {}: {}", address, e)
+                        KaseederError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("I/O error connecting to {}: {}", address, e)))
                     }
                     _ => {
-                        anyhow::anyhow!("Connection failed to {}: {}", address, e)
+                        KaseederError::ConnectionFailed(format!("Connection failed to {}: {}", address, e))
                     }
                 }
             })?;
@@ -339,7 +339,7 @@ impl DnsseedNetAdapter {
     }
 
     /// Handle ping-pong messages to keep connection alive
-    async fn handle_ping_pong(router: Arc<Router>) -> Result<(), ProtocolError> {
+    async fn handle_ping_pong(router: Arc<Router>) -> std::result::Result<(), ProtocolError> {
         // Subscribe to ping messages
         let mut ping_receiver = router.subscribe(vec![KaspadMessagePayloadType::Ping]);
 

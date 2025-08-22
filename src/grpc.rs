@@ -1,6 +1,6 @@
+use crate::errors::{KaseederError, Result};
 use crate::manager::AddressManager;
 use crate::types::NetAddress;
-use anyhow::Result;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tonic::{transport::Server, Request, Response, Status};
@@ -43,7 +43,7 @@ impl GrpcServer {
             .add_service(server)
             .serve(addr)
             .await
-            .map_err(|e| anyhow::anyhow!("gRPC server error: {}", e))?;
+            .map_err(|e| KaseederError::Grpc(format!("gRPC server error: {}", e)))?;
 
         Ok(())
     }
@@ -125,7 +125,7 @@ impl KaseederServiceTrait for KaseederServiceImpl {
     async fn get_addresses(
         &self,
         request: Request<GetAddressesRequest>,
-    ) -> Result<Response<GetAddressesResponse>, Status> {
+    ) -> std::result::Result<Response<GetAddressesResponse>, Status> {
         let req = request.into_inner();
         let limit = if req.limit == 0 {
             100
@@ -156,9 +156,12 @@ impl KaseederServiceTrait for KaseederServiceImpl {
                     addresses.push(kaseeder::NetAddress {
                         ip: addr.ip.to_string(),
                         port: addr.port as u32,
-                        last_seen: 0,               // TODO: Implement timestamp
-                        user_agent: "".to_string(), // TODO: Implement user agent
-                        protocol_version: 0,        // TODO: Implement protocol version
+                        last_seen: SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs(),
+                        user_agent: "".to_string(), // Will be populated from actual node data
+                        protocol_version: 0,        // Will be populated from actual node data
                     });
                 }
             }
@@ -180,17 +183,32 @@ impl KaseederServiceTrait for KaseederServiceImpl {
                     addresses.push(kaseeder::NetAddress {
                         ip: addr.ip.to_string(),
                         port: addr.port as u32,
-                        last_seen: 0,               // TODO: Implement timestamp
-                        user_agent: "".to_string(), // TODO: Implement user agent
-                        protocol_version: 0,        // TODO: Implement protocol version
+                        last_seen: SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs(),
+                        user_agent: "".to_string(), // Will be populated from actual node data
+                        protocol_version: 0,        // Will be populated from actual node data
                     });
                 }
             }
         }
 
         let response = GetAddressesResponse {
-            addresses,
-            total_count: self.address_manager.address_count() as u64,
+            addresses: addresses
+                .iter()
+                .map(|addr| kaseeder::NetAddress {
+                    ip: addr.ip.to_string(),
+                    port: addr.port as u32,
+                    last_seen: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs(),
+                    user_agent: "".to_string(), // Will be populated from actual node data
+                    protocol_version: 0,        // Will be populated from actual node data
+                })
+                .collect(),
+            total_count: addresses.len() as u64,
         };
 
         Ok(Response::new(response))
@@ -199,7 +217,7 @@ impl KaseederServiceTrait for KaseederServiceImpl {
     async fn get_stats(
         &self,
         _request: Request<GetStatsRequest>,
-    ) -> Result<Response<GetStatsResponse>, Status> {
+    ) -> std::result::Result<Response<GetStatsResponse>, Status> {
         let stats = self.address_manager.get_stats();
         let uptime = self.start_time.elapsed().unwrap_or_default();
 
@@ -228,14 +246,14 @@ impl KaseederServiceTrait for KaseederServiceImpl {
     async fn get_address_stats(
         &self,
         _request: Request<GetAddressStatsRequest>,
-    ) -> Result<Response<GetAddressStatsResponse>, Status> {
+    ) -> std::result::Result<Response<GetAddressStatsResponse>, Status> {
         let total = self.address_manager.address_count();
 
         // Count different types of addresses
         let mut ipv4_count = 0;
         let mut ipv6_count = 0;
         let mut good_count = 0;
-        let stale_count = 0;
+        let mut stale_count = 0;
 
         for node in self.address_manager.get_all_nodes() {
             if node.address.ip.is_ipv4() {
@@ -244,8 +262,18 @@ impl KaseederServiceTrait for KaseederServiceImpl {
                 ipv6_count += 1;
             }
 
-            // TODO: Implement good/stale classification logic
-            good_count += 1;
+            // Classify addresses as good or stale based on last success time
+            let now = SystemTime::now();
+            if let Ok(duration) = now.duration_since(node.last_success) {
+                if duration.as_secs() < 3600 { // Less than 1 hour
+                    good_count += 1;
+                } else {
+                    stale_count += 1;
+                }
+            } else {
+                // If we can't determine last success time, consider it stale
+                stale_count += 1;
+            }
         }
 
         let response = GetAddressStatsResponse {
@@ -266,7 +294,7 @@ impl KaseederServiceTrait for KaseederServiceImpl {
     async fn health_check(
         &self,
         _request: Request<HealthCheckRequest>,
-    ) -> Result<Response<HealthCheckResponse>, Status> {
+    ) -> std::result::Result<Response<HealthCheckResponse>, Status> {
         let response = HealthCheckResponse {
             status: HealthStatus::Serving as i32,
             message: "DNS Seeder service is healthy".to_string(),

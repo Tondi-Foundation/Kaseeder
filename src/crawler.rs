@@ -1,20 +1,16 @@
 use crate::checkversion::VersionChecker;
 use crate::config::Config;
+use crate::constants::{CRAWLER_SLEEP_INTERVAL, MAX_CONCURRENT_POLLS};
 use crate::dns_seed_discovery::DnsSeedDiscovery;
+use crate::errors::{KaseederError, Result};
 use crate::manager::AddressManager;
 use crate::netadapter::DnsseedNetAdapter;
 use crate::types::NetAddress;
-use anyhow::Result;
 use kaspa_consensus_core::config::Config as ConsensusConfig;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tokio::sync::{mpsc, Mutex, Semaphore};
 use tracing::{debug, error, info, warn};
-
-/// Crawler configuration constants
-
-const CRAWLER_SLEEP_INTERVAL: Duration = Duration::from_secs(10);
-const MAX_CONCURRENT_POLLS: usize = 100;
 
 /// Performance-optimized crawler manager
 pub struct Crawler {
@@ -105,7 +101,7 @@ impl Crawler {
             if !peers.is_empty() {
                 let added = self.address_manager.add_addresses(
                     peers.clone(),
-                    self.config.get_network_params().default_port(),
+                    self.config.network_params().default_port(),
                     false, // Do not accept unroutable addresses
                 );
 
@@ -230,7 +226,7 @@ impl Crawler {
     async fn seed_from_dns(&self) -> Result<()> {
         debug!("Attempting to seed from DNS");
 
-        let network_params = self.config.get_network_params();
+        let network_params = self.config.network_params();
         let seed_servers = DnsSeedDiscovery::get_dns_seeders_from_network_params(&network_params);
         let mut discovered_addresses = Vec::new();
 
@@ -300,7 +296,7 @@ impl Crawler {
         result
     }
 
-    /// Poll a single node
+    /// Poll a single node with intelligent connection tracking
     async fn poll_single_peer(
         net_adapter: Arc<DnsseedNetAdapter>,
         address: NetAddress,
@@ -314,54 +310,83 @@ impl Crawler {
         debug!("Polling peer {}", peer_address);
 
         // Connect to node and get addresses
-        let (version_msg, addresses) =
-            net_adapter
-                .connect_and_get_addresses(&peer_address)
-                .await
-                .map_err(|e| anyhow::anyhow!("Could not connect to {}: {}", peer_address, e))?;
+        let connection_result = net_adapter
+            .connect_and_get_addresses(&peer_address)
+            .await;
 
-        // Check protocol version
-        if let Err(e) = VersionChecker::check_protocol_version(
-            version_msg.protocol_version,
-            config.min_proto_ver,
-        ) {
-            return Err(anyhow::anyhow!(
-                "Peer {} protocol version validation failed: {}",
-                peer_address,
-                e
-            ));
-        }
+        match connection_result {
+            Ok((version_msg, addresses)) => {
+                // Record successful connection
+                address_manager.record_connection_result(&address, true, None);
+                
+                // Check protocol version
+                if let Err(e) = VersionChecker::check_protocol_version(
+                    version_msg.protocol_version,
+                    config.min_proto_ver,
+                ) {
+                    let error_msg = format!("Protocol version validation failed: {}", e);
+                    address_manager.record_connection_result(&address, false, Some(error_msg.clone()));
+                    return Err(KaseederError::Validation(format!(
+                        "Peer {} protocol version validation failed: {}",
+                        peer_address,
+                        e
+                    )));
+                }
 
-        // Check user agent version
-        if let Some(ref min_ua_ver) = config.min_ua_ver {
-            if let Err(e) = VersionChecker::check_version(min_ua_ver, &version_msg.user_agent) {
-                return Err(anyhow::anyhow!(
-                    "Peer {} user agent validation failed: {}",
+                // Check user agent version
+                if let Some(ref min_ua_ver) = config.min_ua_ver {
+                    if let Err(e) = VersionChecker::check_version(min_ua_ver, &version_msg.user_agent) {
+                        let error_msg = format!("User agent validation failed: {}", e);
+                        address_manager.record_connection_result(&address, false, Some(error_msg.clone()));
+                        return Err(KaseederError::Validation(format!(
+                            "Peer {} user agent validation failed: {}",
+                            peer_address,
+                            e
+                        )));
+                    }
+                }
+
+                // Add received addresses
+                let added = address_manager.add_addresses(
+                    addresses.clone(),
+                    config.network_params().default_port(),
+                    false, // Do not accept unroutable addresses
+                );
+
+                info!(
+                    "✅ Peer {} ({}) sent {} addresses, {} new",
                     peer_address,
-                    e
-                ));
+                    version_msg.user_agent,
+                    addresses.len(),
+                    added
+                );
+
+                // Mark node as good
+                address_manager.good(&address, Some(&version_msg.user_agent), None);
+
+                Ok(())
+            }
+            Err(e) => {
+                // Record failed connection with error details
+                let error_msg = e.to_string();
+                address_manager.record_connection_result(&address, false, Some(error_msg.clone()));
+                
+                // Classify error type for different handling
+                let classified_error = if error_msg.contains("Unimplemented") {
+                    "Unsupported protocol"
+                } else if error_msg.contains("transport error") {
+                    "Network unreachable"
+                } else if error_msg.contains("timeout") {
+                    "Connection timeout"
+                } else {
+                    "Connection failed"
+                };
+                
+                debug!("❌ {} - {}: {}", classified_error, peer_address, error_msg);
+                
+                Err(KaseederError::ConnectionFailed(format!("Could not connect to {}: {}", peer_address, e)))
             }
         }
-
-        // Add received addresses
-        let added = address_manager.add_addresses(
-            addresses.clone(),
-            config.get_network_params().default_port(),
-            false, // Do not accept unroutable addresses
-        );
-
-        info!(
-            "Peer {} ({}) sent {} addresses, {} new",
-            peer_address,
-            version_msg.user_agent,
-            addresses.len(),
-            added
-        );
-
-        // Mark node as good
-        address_manager.good(&address, Some(&version_msg.user_agent), None);
-
-        Ok(())
     }
 
     /// Shutdown crawler

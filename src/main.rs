@@ -1,13 +1,13 @@
-use anyhow::Result;
-use clap::Parser;
 use kaseeder::config::{Config, CliOverrides};
 use kaseeder::crawler::Crawler;
 use kaseeder::dns::DnsServer;
+use kaseeder::errors::{KaseederError, Result};
 use kaseeder::grpc::GrpcServer;
 use kaseeder::kaspa_protocol::create_consensus_config;
-use kaseeder::logging::init_logging;
+use kaseeder::logging::LoggingConfig;
 use kaseeder::manager::AddressManager;
 use kaseeder::profiling::ProfilingServer;
+use clap::Parser;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::signal;
@@ -109,205 +109,162 @@ async fn main() -> Result<()> {
     // Parse command line arguments
     let cli = Cli::parse();
 
-    // Load and configure application
-    let config = load_and_configure(&cli)?;
-    
-    // Initialize logging
-    init_logging(
-        &config.log_level,
-        if config.nologfiles {
-            None
-        } else {
-            Some("kaseeder.log")
-        },
-    )?;
+    // Initialize logging with custom configuration
+    let mut logging_config = LoggingConfig::default();
+    if let Some(log_level) = &cli.log_level {
+        logging_config.level = log_level.clone();
+    }
+    if let Some(nologfiles) = cli.nologfiles {
+        logging_config.no_log_files = nologfiles;
+    }
 
-    // Display version and configuration information
-    info!("Version {}", env!("CARGO_PKG_VERSION"));
-    config.display();
+    // Initialize logging system
+    kaseeder::logging::init_logging_with_config(logging_config)?;
 
-    // Create application directory
-    let app_dir = create_app_directory(&config)?;
+    info!("Starting Kaspa DNS Seeder...");
 
-    // Create and start services
-    let services = start_services(&config, &app_dir).await?;
-
-    // Wait for shutdown signal
-    wait_for_shutdown().await?;
-
-    // Graceful shutdown
-    shutdown_services(services).await?;
-
-    info!("All services shutdown complete");
-    Ok(())
-}
-
-/// Load configuration from file and apply CLI overrides
-fn load_and_configure(cli: &Cli) -> Result<Arc<Config>> {
-    // Try to load configuration from file
-    let mut config = if let Some(config_file) = &cli.config {
-        info!("Loading configuration from file: {}", config_file);
-        Config::load_from_file(config_file)?
+    // Load configuration
+    let config = if let Some(config_path) = &cli.config {
+        Config::load_from_file(config_path)?
     } else {
-        info!("No config file specified, trying default locations");
         Config::try_load_default()?
     };
 
-    // Apply command line overrides
-    let overrides = CliOverrides {
-        host: cli.host.clone(),
-        nameserver: cli.nameserver.clone(),
-        listen: cli.listen.clone(),
-        grpc_listen: cli.grpc_listen.clone(),
-        app_dir: cli.app_dir.clone(),
-        seeder: cli.seeder.clone(),
-        known_peers: cli.known_peers.clone(),
-        threads: cli.threads,
-        min_proto_ver: cli.min_proto_ver,
-        min_ua_ver: cli.min_ua_ver.clone(),
-        testnet: cli.testnet,
-        net_suffix: cli.net_suffix,
-        log_level: cli.log_level.clone(),
-        nologfiles: cli.nologfiles,
-        profile: cli.profile.clone(),
-    };
-    config.apply_cli_overrides(&overrides);
+    // Apply CLI overrides
+    let config = config.with_cli_overrides(cli.into())?;
+
+    // Display configuration
+    config.display();
 
     // Validate configuration
     config.validate()?;
 
-    Ok(Arc::new(config))
-}
-
-/// Create application directory with network namespace
-fn create_app_directory(config: &Config) -> Result<String> {
-    let network_name = config.get_network_name();
-    let namespaced_app_dir = std::path::Path::new(&config.app_dir).join(network_name);
-    let app_dir_str = namespaced_app_dir.to_string_lossy().to_string();
-
-    // Ensure application directory exists
-    std::fs::create_dir_all(&namespaced_app_dir)?;
-    info!("Created application directory: {}", app_dir_str);
-
-    Ok(app_dir_str)
-}
-
-/// Start all application services
-async fn start_services(config: &Arc<Config>, app_dir: &str) -> Result<Services> {
-    // Create address manager
-    let address_manager = Arc::new(AddressManager::new(app_dir)?);
-    address_manager.start();
-
     // Create consensus configuration
     let consensus_config = create_consensus_config(config.testnet, config.net_suffix);
+
+    // Create address manager
+    let address_manager = Arc::new(AddressManager::new(&config.app_dir)?);
+    address_manager.start();
 
     // Create crawler
     let mut crawler = Crawler::new(
         address_manager.clone(),
-        consensus_config.clone(),
-        config.clone(),
+        consensus_config,
+        Arc::new(config.clone()),
     )?;
 
-    // Start performance analysis server (if enabled)
-    let profiling_server = if let Some(profile_port) = &config.profile {
-        let port = profile_port.parse::<u16>().unwrap_or(8080);
-        let server = ProfilingServer::new(port);
-
-        // Start performance analysis server
-        let server_clone = server.clone();
-        tokio::spawn(async move {
-            if let Err(e) = server_clone.start().await {
-                error!("Failed to start profiling server: {}", e);
-            }
-        });
-
-        Some(server)
-    } else {
-        None
-    };
-
-    // Start DNS server
+    // Create DNS server
     let dns_server = DnsServer::new(
         config.host.clone(),
         config.nameserver.clone(),
         config.listen.clone(),
         address_manager.clone(),
     );
+
+    // Create gRPC server
+    let grpc_server = GrpcServer::new(address_manager.clone());
+
+    // Create profiling server if enabled
+    let profiling_server = if let Some(ref profile_port) = config.profile {
+        let port: u16 = profile_port.parse()
+            .map_err(|_| KaseederError::InvalidConfigValue {
+                field: "profile".to_string(),
+                value: profile_port.clone(),
+                expected: "valid port number".to_string(),
+            })?;
+        Some(ProfilingServer::new(port))
+    } else {
+        None
+    };
+
+    // Start profiling server if enabled
+    if let Some(ref profiling_server) = profiling_server {
+        profiling_server.start().await?;
+    }
+
+    // Create shutdown signal handler
+    let shutdown_signal = Arc::new(AtomicBool::new(false));
+    let shutdown_signal_clone = shutdown_signal.clone();
+
+    // Handle shutdown signals
+    tokio::spawn(async move {
+        if let Ok(_) = signal::ctrl_c().await {
+            info!("Received Ctrl+C, shutting down...");
+            shutdown_signal_clone.store(true, Ordering::SeqCst);
+        }
+    });
+
+    // Handle SIGTERM
+    let shutdown_signal_clone2 = shutdown_signal.clone();
+    tokio::spawn(async move {
+        if let Ok(mut sigterm) = signal::unix::signal(signal::unix::SignalKind::terminate()) {
+            if let Some(()) = sigterm.recv().await {
+                info!("Received SIGTERM, shutting down...");
+                shutdown_signal_clone2.store(true, Ordering::SeqCst);
+            }
+        }
+    });
+
+    // Start services
+    let dns_server = Arc::new(dns_server);
+    let grpc_server = Arc::new(grpc_server);
+    let grpc_listen = config.grpc_listen.clone();
+
+    // Start DNS server
+    let dns_server_clone = dns_server.clone();
     let dns_handle = tokio::spawn(async move {
-        if let Err(e) = dns_server.start().await {
+        if let Err(e) = dns_server_clone.start().await {
             error!("DNS server error: {}", e);
         }
     });
 
-    // Start gRPC server - clone config values to avoid lifetime issues
-    let grpc_listen = config.grpc_listen.clone();
-    let grpc_server = GrpcServer::new(address_manager.clone());
+    // Start gRPC server
+    let grpc_server_clone = grpc_server.clone();
     let grpc_handle = tokio::spawn(async move {
-        if let Err(e) = grpc_server.start(&grpc_listen).await {
+        if let Err(e) = grpc_server_clone.start(&grpc_listen).await {
             error!("gRPC server error: {}", e);
         }
     });
 
     // Start crawler
-    let crawler_clone = crawler.clone();
     let crawler_handle = tokio::spawn(async move {
         if let Err(e) = crawler.start().await {
             error!("Crawler error: {}", e);
         }
     });
 
-    Ok(Services {
-        address_manager,
-        profiling_server,
-        dns_handle,
-        grpc_handle,
-        crawler_handle,
-        crawler: crawler_clone,
-    })
-}
-
-/// Services container for managing all running services
-struct Services {
-    address_manager: Arc<AddressManager>,
-    profiling_server: Option<ProfilingServer>,
-    dns_handle: tokio::task::JoinHandle<()>,
-    grpc_handle: tokio::task::JoinHandle<()>,
-    crawler_handle: tokio::task::JoinHandle<()>,
-    crawler: Crawler,
-}
-
-/// Wait for shutdown signal
-async fn wait_for_shutdown() -> Result<()> {
-    info!("Waiting for interrupt signal...");
-    signal::ctrl_c().await?;
-    info!("Received interrupt signal, shutting down...");
-    Ok(())
-}
-
-/// Gracefully shutdown all services
-async fn shutdown_services(services: Services) -> Result<()> {
-    let shutdown_signal = Arc::new(AtomicBool::new(true));
-    shutdown_signal.store(false, Ordering::SeqCst);
-
-    // Shutdown crawler
-    services.crawler.shutdown().await;
-
-    // Shutdown performance analysis server
-    if let Some(server) = services.profiling_server {
-        if let Err(e) = server.stop().await {
-            error!("Failed to stop profiling server: {}", e);
+    // Start address manager background tasks
+    let shutdown_signal_clone3 = shutdown_signal.clone();
+    let address_manager_handle = tokio::spawn(async move {
+        // Keep address manager running
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            if shutdown_signal_clone3.load(Ordering::SeqCst) {
+                break;
+            }
         }
+    });
+
+    info!("All services started successfully");
+    info!("DNS server listening on {}", config.listen);
+    info!("gRPC server listening on {}", config.grpc_listen);
+    if let Some(ref profile_port) = config.profile {
+        info!("Profiling server listening on port {}", profile_port);
     }
 
-    // Shutdown address manager
-    services.address_manager.shutdown().await;
-
-    // Wait for all services to complete
-    tokio::select! {
-        _ = services.dns_handle => info!("DNS server shutdown complete"),
-        _ = services.grpc_handle => info!("gRPC server shutdown complete"),
-        _ = services.crawler_handle => info!("Crawler shutdown complete"),
+    // Wait for shutdown signal
+    while !shutdown_signal.load(Ordering::SeqCst) {
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 
+    info!("Shutting down services...");
+
+    // Graceful shutdown
+    dns_handle.abort();
+    grpc_handle.abort();
+    crawler_handle.abort();
+    address_manager_handle.abort();
+
+    info!("Shutdown complete");
     Ok(())
 }

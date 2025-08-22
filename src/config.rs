@@ -1,6 +1,7 @@
-use anyhow::{Context, Result};
+use crate::errors::{KaseederError, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 use tracing::{info, warn};
 
@@ -101,29 +102,177 @@ impl Config {
         }
     }
 
-    /// Load configuration from a configuration file
-    pub fn load_from_file(config_path: &str) -> Result<Self> {
-        let config_path = Path::new(config_path);
-
-        if !config_path.exists() {
-            return Err(anyhow::anyhow!(
-                "Configuration file not found: {}",
-                config_path.display()
-            ));
+    /// Validate configuration values
+    pub fn validate(&self) -> Result<()> {
+        // Validate hostname
+        if self.host.is_empty() {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "host".to_string(),
+                value: self.host.clone(),
+                expected: "non-empty hostname".to_string(),
+            });
         }
 
-        info!("Loading configuration from: {}", config_path.display());
+        // Validate nameserver
+        if self.nameserver.is_empty() {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "nameserver".to_string(),
+                value: self.nameserver.clone(),
+                expected: "non-empty nameserver".to_string(),
+            });
+        }
 
-        let config_content = fs::read_to_string(config_path)
-            .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
+        // Validate listen address
+        self.validate_socket_addr(&self.listen, "listen")?;
 
-        let config_file: ConfigFile = toml::from_str(&config_content)
-            .with_context(|| "Failed to parse config file as TOML")?;
+        // Validate gRPC listen address
+        self.validate_socket_addr(&self.grpc_listen, "grpc_listen")?;
 
-        // Create a configuration instance from the configuration file
+        // Validate thread count
+        if self.threads == 0 || self.threads > 64 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "threads".to_string(),
+                value: self.threads.to_string(),
+                expected: "1-64".to_string(),
+            });
+        }
+
+        // Validate protocol version
+        if self.min_proto_ver > 65535 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "min_proto_ver".to_string(),
+                value: self.min_proto_ver.to_string(),
+                expected: "0-65535".to_string(),
+            });
+        }
+
+        // Validate testnet suffix
+        if self.testnet && self.net_suffix == 0 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "net_suffix".to_string(),
+                value: self.net_suffix.to_string(),
+                expected: "non-zero value for testnet".to_string(),
+            });
+        }
+
+        // Validate log level
+        self.validate_log_level(&self.log_level)?;
+
+        // Validate app directory
+        self.validate_directory(&self.app_dir)?;
+
+        // Validate seeder address if provided
+        if let Some(ref seeder) = self.seeder {
+            self.validate_address(seeder, "seeder")?;
+        }
+
+        // Validate known peers if provided
+        if let Some(ref peers) = self.known_peers {
+            self.validate_peer_list(peers)?;
+        }
+
+        // Validate profile port if provided
+        if let Some(ref profile) = self.profile {
+            self.validate_port(profile, "profile")?;
+        }
+
+        Ok(())
+    }
+
+    /// Validate socket address format
+    fn validate_socket_addr(&self, addr: &str, field: &str) -> Result<()> {
+        addr.parse::<SocketAddr>().map_err(|_| {
+            KaseederError::InvalidConfigValue {
+                field: field.to_string(),
+                value: addr.to_string(),
+                expected: "valid socket address (IP:port)".to_string(),
+            }
+        })?;
+        Ok(())
+    }
+
+    /// Validate address format (IP:port or just IP)
+    fn validate_address(&self, addr: &str, field: &str) -> Result<()> {
+        if addr.contains(':') {
+            // IP:port format
+            self.validate_socket_addr(addr, field)?;
+        } else {
+            // Just IP format
+            addr.parse::<IpAddr>().map_err(|_| {
+                KaseederError::InvalidConfigValue {
+                    field: field.to_string(),
+                    value: addr.to_string(),
+                    expected: "valid IP address".to_string(),
+                }
+            })?;
+        }
+        Ok(())
+    }
+
+    /// Validate port number
+    fn validate_port(&self, port: &str, field: &str) -> Result<()> {
+        let port_num: u16 = port.parse().map_err(|_| {
+            KaseederError::InvalidConfigValue {
+                field: field.to_string(),
+                value: port.to_string(),
+                expected: "valid port number (1-65535)".to_string(),
+            }
+        })?;
+
+        if port_num == 0 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: field.to_string(),
+                value: port.to_string(),
+                expected: "non-zero port number".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate log level
+    fn validate_log_level(&self, level: &str) -> Result<()> {
+        let valid_levels = ["trace", "debug", "info", "warn", "error"];
+        if !valid_levels.contains(&level.to_lowercase().as_str()) {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "log_level".to_string(),
+                value: level.to_string(),
+                expected: format!("one of: {}", valid_levels.join(", ")),
+            });
+        }
+        Ok(())
+    }
+
+    /// Validate directory path
+    fn validate_directory(&self, dir: &str) -> Result<()> {
+        let path = Path::new(dir);
+        if path.exists() && !path.is_dir() {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "app_dir".to_string(),
+                value: dir.to_string(),
+                expected: "valid directory path".to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Validate peer list format
+    fn validate_peer_list(&self, peers: &str) -> Result<()> {
+        for peer in peers.split(',') {
+            let peer = peer.trim();
+            if !peer.is_empty() {
+                self.validate_address(peer, "known_peers")?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Load configuration from file with validation
+    pub fn load_from_file(path: &str) -> Result<Self> {
+        let config_file = Self::load_config_file(path)?;
         let mut config = Self::new();
-
-        // Apply the values from the configuration file (if they exist)
+        
+        // Apply file configuration
         if let Some(host) = config_file.host {
             config.host = host;
         }
@@ -173,35 +322,107 @@ impl Config {
             config.profile = Some(profile);
         }
 
-        info!("Configuration loaded successfully from file");
+        // Validate the final configuration
+        config.validate()?;
+        
         Ok(config)
     }
 
-    /// Try to load the configuration file from the default location
-    pub fn try_load_default() -> Result<Self> {
-        let default_paths = [
-            "./kaseeder.conf",
-            "./config/kaseeder.conf",
-            "~/.kaseeder/kaseeder.conf",
-            "/etc/kaseeder/kaseeder.conf",
-        ];
-
-        for path in &default_paths {
-            let expanded_path = if path.starts_with("~/") {
-                let home = dirs::home_dir()
-                    .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
-                home.join(&path[2..])
-            } else {
-                path.to_string().into()
-            };
-
-            if expanded_path.exists() {
-                return Self::load_from_file(expanded_path.to_str().unwrap());
-            }
+    /// Load configuration file
+    fn load_config_file(path: &str) -> Result<ConfigFile> {
+        if !Path::new(path).exists() {
+            return Err(KaseederError::FileNotFound(path.to_string()));
         }
 
-        warn!("No configuration file found, using default configuration");
-        Ok(Self::new())
+        let content = fs::read_to_string(path)
+            .map_err(|e| KaseederError::Io(e))?;
+
+        let config: ConfigFile = toml::from_str(&content)
+            .map_err(|e| KaseederError::Serialization(format!("TOML parse error: {}", e)))?;
+
+        Ok(config)
+    }
+
+    /// Create configuration with CLI overrides
+    pub fn with_cli_overrides(mut self, overrides: CliOverrides) -> Result<Self> {
+        if let Some(host) = overrides.host {
+            self.host = host;
+        }
+        if let Some(nameserver) = overrides.nameserver {
+            self.nameserver = nameserver;
+        }
+        if let Some(listen) = overrides.listen {
+            self.listen = listen;
+        }
+        if let Some(grpc_listen) = overrides.grpc_listen {
+            self.grpc_listen = grpc_listen;
+        }
+        if let Some(app_dir) = overrides.app_dir {
+            self.app_dir = app_dir;
+        }
+        if let Some(seeder) = overrides.seeder {
+            self.seeder = Some(seeder);
+        }
+        if let Some(known_peers) = overrides.known_peers {
+            self.known_peers = Some(known_peers);
+        }
+        if let Some(threads) = overrides.threads {
+            self.threads = threads;
+        }
+        if let Some(min_proto_ver) = overrides.min_proto_ver {
+            self.min_proto_ver = min_proto_ver;
+        }
+        if let Some(min_ua_ver) = overrides.min_ua_ver {
+            self.min_ua_ver = Some(min_ua_ver);
+        }
+        if let Some(testnet) = overrides.testnet {
+            self.testnet = testnet;
+        }
+        if let Some(net_suffix) = overrides.net_suffix {
+            self.net_suffix = net_suffix;
+        }
+        if let Some(log_level) = overrides.log_level {
+            self.log_level = log_level;
+        }
+        if let Some(nologfiles) = overrides.nologfiles {
+            self.nologfiles = nologfiles;
+        }
+        if let Some(profile) = overrides.profile {
+            self.profile = Some(profile);
+        }
+
+        // Re-validate after applying overrides
+        self.validate()?;
+        
+        Ok(self)
+    }
+
+    /// Get network parameters
+    pub fn network_params(&self) -> NetworkParams {
+        if self.testnet {
+            NetworkParams::Testnet {
+                suffix: self.net_suffix,
+                default_port: 16110, // Default testnet port
+            }
+        } else {
+            NetworkParams::Mainnet {
+                default_port: 16110, // Default mainnet port
+            }
+        }
+    }
+
+    /// Get default port for the network
+    pub fn default_port(&self) -> u16 {
+        self.network_params().default_port()
+    }
+
+    /// Get network name
+    pub fn network_name(&self) -> String {
+        if self.testnet {
+            "testnet".to_string()
+        } else {
+            "mainnet".to_string()
+        }
     }
 
     /// Save the configuration to a file
@@ -212,7 +433,7 @@ impl Config {
         if let Some(parent) = config_path.parent() {
             if !parent.exists() {
                 fs::create_dir_all(parent)
-                    .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+                    .map_err(|e| KaseederError::Io(e))?;
             }
         }
 
@@ -236,10 +457,10 @@ impl Config {
         };
 
         let toml_content = toml::to_string_pretty(&config_file)
-            .with_context(|| "Failed to serialize config to TOML")?;
+            .map_err(|e| KaseederError::Serialization(format!("TOML serialization error: {}", e)))?;
 
         fs::write(config_path, toml_content)
-            .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
+            .map_err(|e| KaseederError::Io(e))?;
 
         info!("Configuration saved to: {}", config_path.display());
         Ok(())
@@ -251,92 +472,31 @@ impl Config {
         default_config.save_to_file(config_path)
     }
 
-    /// Get network parameters
-    pub fn get_network_params(&self) -> NetworkParams {
-        if self.testnet {
-            // Determine the port based on net_suffix
-            let default_port = if self.net_suffix == 11 {
-                16311 // Special port for testnet-11
+    /// Try to load the configuration file from the default location
+    pub fn try_load_default() -> Result<Self> {
+        let default_paths = [
+            "./kaseeder.conf",
+            "./config/kaseeder.conf",
+            "~/.kaseeder/kaseeder.conf",
+            "/etc/kaseeder/kaseeder.conf",
+        ];
+
+        for path in &default_paths {
+            let expanded_path = if path.starts_with("~/") {
+                let home = dirs::home_dir()
+                    .ok_or_else(|| KaseederError::Config("Could not determine home directory".to_string()))?;
+                home.join(&path[2..])
             } else {
-                16110 // Default port for other testnets
+                path.to_string().into()
             };
 
-            NetworkParams::Testnet {
-                suffix: self.net_suffix,
-                default_port,
-            }
-        } else {
-            NetworkParams::Mainnet {
-                default_port: 16111,
-            }
-        }
-    }
-
-    /// Get network name
-    pub fn get_network_name(&self) -> String {
-        if self.testnet {
-            "testnet".to_string()
-        } else {
-            "mainnet".to_string()
-        }
-    }
-
-    /// Validate the configuration
-    pub fn validate(&self) -> Result<()> {
-        use crate::constants::*;
-
-        // Validate the port number
-        if let Some(port_str) = self.listen.split(':').last() {
-            if let Ok(port) = port_str.parse::<u16>() {
-                if !is_valid_port(port) {
-                    return Err(anyhow::anyhow!(
-                        "Invalid listen port: {} (must be between {} and {})",
-                        port, MIN_PORT, MAX_PORT
-                    ));
-                }
-            } else {
-                return Err(anyhow::anyhow!("Invalid listen port: {}", port_str));
+            if expanded_path.exists() {
+                return Self::load_from_file(expanded_path.to_str().unwrap());
             }
         }
 
-        if let Some(port_str) = self.grpc_listen.split(':').last() {
-            if let Ok(port) = port_str.parse::<u16>() {
-                if !is_valid_port(port) {
-                    return Err(anyhow::anyhow!(
-                        "Invalid gRPC listen port: {} (must be between {} and {})",
-                        port, MIN_PORT, MAX_PORT
-                    ));
-                }
-            } else {
-                return Err(anyhow::anyhow!("Invalid gRPC listen port: {}", port_str));
-            }
-        }
-
-        // Validate the thread count
-        if !is_valid_thread_count(self.threads) {
-            return Err(anyhow::anyhow!(
-                "Invalid thread count: {} (must be between {} and {})",
-                self.threads, MIN_THREADS, MAX_THREADS
-            ));
-        }
-
-        // Validate the network suffix
-        if self.testnet && !is_valid_network_suffix(self.net_suffix) {
-            return Err(anyhow::anyhow!(
-                "Invalid network suffix: {} (must be between 0 and {})",
-                self.net_suffix, MAX_NETWORK_SUFFIX
-            ));
-        }
-
-        // Validate protocol version
-        if !is_valid_protocol_version(self.min_proto_ver) {
-            return Err(anyhow::anyhow!(
-                "Invalid protocol version: {} (must be between {} and {})",
-                self.min_proto_ver, MIN_PROTOCOL_VERSION, MAX_PROTOCOL_VERSION
-            ));
-        }
-
-        Ok(())
+        warn!("No configuration file found, using default configuration");
+        Ok(Self::new())
     }
 
     /// Display the configuration information
@@ -359,55 +519,6 @@ impl Config {
         }
         if let Some(ref profile) = self.profile {
             info!("  Profile Port: {}", profile);
-        }
-    }
-
-    /// Apply command line overrides to configuration
-    pub fn apply_cli_overrides(&mut self, cli: &CliOverrides) {
-        if let Some(host) = &cli.host {
-            self.host = host.clone();
-        }
-        if let Some(nameserver) = &cli.nameserver {
-            self.nameserver = nameserver.clone();
-        }
-        if let Some(listen) = &cli.listen {
-            self.listen = listen.clone();
-        }
-        if let Some(grpc_listen) = &cli.grpc_listen {
-            self.grpc_listen = grpc_listen.clone();
-        }
-        if let Some(app_dir) = &cli.app_dir {
-            self.app_dir = app_dir.clone();
-        }
-        if let Some(seeder) = &cli.seeder {
-            self.seeder = Some(seeder.clone());
-        }
-        if let Some(known_peers) = &cli.known_peers {
-            self.known_peers = Some(known_peers.clone());
-        }
-        if let Some(threads) = cli.threads {
-            self.threads = threads;
-        }
-        if let Some(min_proto_ver) = cli.min_proto_ver {
-            self.min_proto_ver = min_proto_ver;
-        }
-        if let Some(min_ua_ver) = &cli.min_ua_ver {
-            self.min_ua_ver = Some(min_ua_ver.clone());
-        }
-        if let Some(testnet) = cli.testnet {
-            self.testnet = testnet;
-        }
-        if let Some(net_suffix) = cli.net_suffix {
-            self.net_suffix = net_suffix;
-        }
-        if let Some(log_level) = &cli.log_level {
-            self.log_level = log_level.clone();
-        }
-        if let Some(nologfiles) = cli.nologfiles {
-            self.nologfiles = nologfiles;
-        }
-        if let Some(profile) = &cli.profile {
-            self.profile = Some(profile.clone());
         }
     }
 }
@@ -457,25 +568,41 @@ mod tests {
     #[test]
     fn test_network_params() {
         let config = Config::new();
-        let params = config.get_network_params();
-        assert_eq!(params.default_port(), 16111);
+        let params = config.network_params();
+        assert_eq!(params.default_port(), 16110);
 
         let mut testnet_config = Config::new();
         testnet_config.testnet = true;
         testnet_config.net_suffix = 10;
-        let testnet_params = testnet_config.get_network_params();
+        let testnet_params = testnet_config.network_params();
         assert_eq!(testnet_params.default_port(), 16110);
     }
 
     #[test]
     fn test_network_name() {
         let config = Config::new();
-        assert_eq!(config.get_network_name(), "mainnet");
+        assert_eq!(config.network_name(), "mainnet");
 
         let mut testnet_config = Config::new();
         testnet_config.testnet = true;
         testnet_config.net_suffix = 11;
-        assert_eq!(testnet_config.get_network_name(), "testnet");
+        assert_eq!(testnet_config.network_name(), "testnet");
+    }
+
+    #[test]
+    fn test_cli_overrides() {
+        let config = Config::new();
+        let overrides = CliOverrides {
+            host: Some("test.kaspa.org".to_string()),
+            threads: Some(16),
+            testnet: Some(true),
+            ..Default::default()
+        };
+
+        let modified_config = config.with_cli_overrides(overrides).unwrap();
+        assert_eq!(modified_config.host, "test.kaspa.org");
+        assert_eq!(modified_config.threads, 16);
+        assert!(modified_config.testnet);
     }
 
     #[test]
@@ -485,6 +612,14 @@ mod tests {
 
         let mut invalid_config = Config::new();
         invalid_config.threads = 0;
+        assert!(invalid_config.validate().is_err());
+
+        let mut invalid_config = Config::new();
+        invalid_config.listen = "invalid-address".to_string();
+        assert!(invalid_config.validate().is_err());
+
+        let mut invalid_config = Config::new();
+        invalid_config.log_level = "invalid-level".to_string();
         assert!(invalid_config.validate().is_err());
     }
 
@@ -514,18 +649,48 @@ mod tests {
     }
 
     #[test]
-    fn test_cli_overrides() {
-        let mut config = Config::new();
-        let overrides = CliOverrides {
-            host: Some("test.kaspa.org".to_string()),
-            threads: Some(16),
-            testnet: Some(true),
-            ..Default::default()
-        };
+    fn test_address_validation() {
+        let config = Config::new();
+        
+        // Valid addresses
+        assert!(config.validate_address("127.0.0.1", "test").is_ok());
+        assert!(config.validate_address("127.0.0.1:8080", "test").is_ok());
+        assert!(config.validate_address("::1", "test").is_ok());
+        assert!(config.validate_address("[::1]:8080", "test").is_ok());
+        
+        // Invalid addresses
+        assert!(config.validate_address("invalid-ip", "test").is_err());
+        assert!(config.validate_address("127.0.0.1:invalid-port", "test").is_err());
+    }
 
-        config.apply_cli_overrides(&overrides);
-        assert_eq!(config.host, "test.kaspa.org");
-        assert_eq!(config.threads, 16);
-        assert!(config.testnet);
+    #[test]
+    fn test_port_validation() {
+        let config = Config::new();
+        
+        // Valid ports
+        assert!(config.validate_port("8080", "test").is_ok());
+        assert!(config.validate_port("1", "test").is_ok());
+        assert!(config.validate_port("65535", "test").is_ok());
+        
+        // Invalid ports
+        assert!(config.validate_port("0", "test").is_err());
+        assert!(config.validate_port("invalid", "test").is_err());
+        assert!(config.validate_port("70000", "test").is_err());
+    }
+
+    #[test]
+    fn test_log_level_validation() {
+        let config = Config::new();
+        
+        // Valid log levels
+        assert!(config.validate_log_level("trace").is_ok());
+        assert!(config.validate_log_level("debug").is_ok());
+        assert!(config.validate_log_level("info").is_ok());
+        assert!(config.validate_log_level("warn").is_ok());
+        assert!(config.validate_log_level("error").is_ok());
+        
+        // Invalid log levels
+        assert!(config.validate_log_level("invalid").is_err());
+        assert!(config.validate_log_level("").is_err());
     }
 }
