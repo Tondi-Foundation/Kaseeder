@@ -9,10 +9,20 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 
-/// Address manager configuration constants
+// Address manager constants
 const PEERS_FILENAME: &str = "peers.json";
-const DEFAULT_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(60 * 60); // 1 hour, same as Go version
-const NEW_NODE_POLL_INTERVAL: Duration = Duration::from_secs(30 * 60); // New node poll interval: 30 minutes
+const DEFAULT_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60); // 24 hours
+const NEW_NODE_POLL_INTERVAL: Duration = Duration::from_secs(5 * 60); // New node poll interval: 5 minutes (reduced from 30 minutes)
+
+// Development mode constants (for local testing)
+#[cfg(debug_assertions)]
+const DEV_NODE_POLL_INTERVAL: Duration = Duration::from_secs(30); // 30 seconds for development
+#[cfg(debug_assertions)]
+const DEV_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(5 * 60); // 5 minutes for development
+
+const QUALITY_DECAY_FACTOR: f64 = 0.95; // Quality score decay factor
+const MAX_QUALITY_SCORE: f64 = 1.0; // Maximum quality score
+const MIN_QUALITY_SCORE: f64 = 0.0; // Minimum quality score
 const PRUNE_EXPIRE_TIMEOUT: Duration = Duration::from_secs(8 * 60 * 60); // 8 hours, same as Go version
 const PRUNE_ADDRESS_INTERVAL: Duration = Duration::from_secs(60 * 60); // 1 hour
 const DUMP_ADDRESS_INTERVAL: Duration = Duration::from_secs(10 * 60); // 10 minutes
@@ -113,13 +123,27 @@ impl Node {
             return false;
         }
 
+        // Use different intervals for development vs production
+        #[cfg(debug_assertions)]
+        let (good_interval, medium_interval, poor_interval) = (
+            Duration::from_secs(60),   // 1 minute for good nodes in dev
+            Duration::from_secs(300),  // 5 minutes for medium nodes in dev
+            Duration::from_secs(600)   // 10 minutes for poor nodes in dev
+        );
+        #[cfg(not(debug_assertions))]
+        let (good_interval, medium_interval, poor_interval) = (
+            Duration::from_secs(300),  // 5 minutes for good nodes in prod
+            Duration::from_secs(1800), // 30 minutes for medium nodes in prod
+            Duration::from_secs(3600)  // 1 hour for poor nodes in prod
+        );
+
         // Don't attempt too frequently for low-quality nodes
         let min_interval = if self.quality_score > 0.7 {
-            Duration::from_secs(300) // 5 minutes for good nodes
+            good_interval
         } else if self.quality_score > 0.3 {
-            Duration::from_secs(1800) // 30 minutes for medium nodes
+            medium_interval
         } else {
-            Duration::from_secs(3600) // 1 hour for poor nodes
+            poor_interval
         };
 
         SystemTime::now()
@@ -212,22 +236,31 @@ impl AddressManager {
             .iter()
             .filter(|entry| {
                 let node = entry.value();
-                node.should_attempt_connection() && 
-                (node.last_success.eq(&UNIX_EPOCH) || self.is_stale(node))
+                // Always allow new nodes (never connected) to be attempted
+                if node.last_success.eq(&UNIX_EPOCH) {
+                    return true;
+                }
+                // For existing nodes, check if they should be attempted
+                node.should_attempt_connection() && self.is_stale(node)
             })
             .collect();
 
-        // Sort by quality score and priority
+        // Log candidate information for debugging
+        let new_nodes = candidates.iter().filter(|entry| entry.value().last_success.eq(&UNIX_EPOCH)).count();
+        let existing_nodes = candidates.len() - new_nodes;
+        debug!("Found {} candidates: {} new nodes, {} existing nodes", candidates.len(), new_nodes, existing_nodes);
+
+        // Sort by priority: new nodes first, then by quality score
         candidates.sort_by(|a, b| {
             let node_a = a.value();
             let node_b = b.value();
             
-            // Prioritize new nodes (never connected)
+            // Prioritize new nodes (never connected) - they get highest priority
             match (node_a.last_success.eq(&UNIX_EPOCH), node_b.last_success.eq(&UNIX_EPOCH)) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
+                (true, false) => std::cmp::Ordering::Less,  // a is new, b is not
+                (false, true) => std::cmp::Ordering::Greater, // b is new, a is not
                 _ => {
-                    // Then sort by quality score
+                    // Both are existing nodes, sort by quality score (higher first)
                     node_b.quality_score.partial_cmp(&node_a.quality_score)
                         .unwrap_or(std::cmp::Ordering::Equal)
                 }
@@ -239,7 +272,24 @@ impl AddressManager {
             addresses.push(candidate.address.clone());
         }
 
-        info!("Selected {} addresses for crawling (quality-filtered)", addresses.len());
+        info!("Selected {} addresses for crawling (quality-filtered): {} new, {} existing", 
+              addresses.len(), 
+              addresses.iter().filter(|addr| {
+                  let key = format!("{}:{}", addr.ip, addr.port);
+                  if let Some(node) = self.nodes.get(&key) {
+                      node.last_success.eq(&UNIX_EPOCH)
+                  } else {
+                      false
+                  }
+              }).count(),
+              addresses.len() - addresses.iter().filter(|addr| {
+                  let key = format!("{}:{}", addr.ip, addr.port);
+                  if let Some(node) = self.nodes.get(&key) {
+                      node.last_success.eq(&UNIX_EPOCH)
+                  } else {
+                      false
+                  }
+              }).count());
         addresses
     }
 
@@ -487,20 +537,29 @@ impl AddressManager {
     fn is_stale(&self, node: &Node) -> bool {
         let now = SystemTime::now();
         let last_attempt_elapsed = now.duration_since(node.last_attempt).unwrap_or_default();
-        let _last_success_elapsed = now.duration_since(node.last_success).unwrap_or_default();
 
-        // For nodes that have never successfully connected (new nodes), if they have never been attempted or the attempt time exceeds a short threshold, it is considered expired
+        // For nodes that have never successfully connected (new nodes)
         if node.last_success.eq(&UNIX_EPOCH) {
-            // New node: If it has never been attempted or the attempt time exceeds the new node poll interval, it is considered expired
-            // However, if this is the first attempt (last_attempt == last_seen), it is immediately considered expired
+            // New node: If it has never been attempted, it's immediately available
             if node.last_attempt == node.last_seen {
-                return true; // New node is immediately considered expired, can be polled
+                return true; // New node is immediately available for polling
             }
-            return last_attempt_elapsed > NEW_NODE_POLL_INTERVAL;
+            // For attempted new nodes, use shorter interval
+            #[cfg(debug_assertions)]
+            let poll_interval = DEV_NODE_POLL_INTERVAL;
+            #[cfg(not(debug_assertions))]
+            let poll_interval = NEW_NODE_POLL_INTERVAL;
+            
+            return last_attempt_elapsed > poll_interval;
         }
 
-        // For nodes that have successfully connected, use the original logic
-        last_attempt_elapsed > DEFAULT_STALE_GOOD_TIMEOUT
+        // For nodes that have successfully connected, use the appropriate timeout
+        #[cfg(debug_assertions)]
+        let stale_timeout = DEV_STALE_GOOD_TIMEOUT;
+        #[cfg(not(debug_assertions))]
+        let stale_timeout = DEFAULT_STALE_GOOD_TIMEOUT;
+        
+        last_attempt_elapsed > stale_timeout
     }
 
     /// Check if address is routable

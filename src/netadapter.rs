@@ -29,12 +29,12 @@ impl KaseederConnectionInitializer {
         addresses_tx: mpsc::Sender<Vec<NetAddress>>,
     ) -> Self {
         let version_message = VersionMessage {
-            protocol_version: 5, // Kaspa protocol version
+            protocol_version: 6, // Use Kaspa protocol version 6 (current stable)
             services: 0,
             timestamp: unix_now() as i64,
             address: None,
             id: Vec::from(Uuid::new_v4().as_bytes()),
-            user_agent: "/kaspa-kaseeder:0.1.0/".to_string(),
+            user_agent: "/kaspa-seeder:1.0.0/".to_string(), // Match kaspa standard format
             disable_relay_tx: true,
             subnetwork_id: None,
             network: consensus_config.params.network_name().to_string(),
@@ -54,13 +54,49 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
         let mut handshake = KaspadHandshake::new(&router);
         router.start();
 
-        // 2. Perform handshake
+        // 2. Perform handshake with protocol version negotiation
         debug!("Starting handshake with peer");
-        let peer_version = handshake.handshake(self.version_message.clone()).await?;
-        info!(
-            "Handshake completed with peer. User agent: {}",
-            peer_version.user_agent
-        );
+        
+        // Try different protocol versions if needed
+        let mut current_version = self.version_message.protocol_version;
+        let mut peer_version = None;
+        
+        // Try up to 5 different protocol versions
+        for attempt in 0..5 {
+            let mut version_msg = self.version_message.clone();
+            version_msg.protocol_version = current_version;
+            
+            match handshake.handshake(version_msg.clone()).await {
+                Ok(version) => {
+                    let user_agent = version.user_agent.clone();
+                    peer_version = Some(version);
+                    info!(
+                        "Handshake completed with peer using protocol version {}. User agent: {}",
+                        current_version, user_agent
+                    );
+                    break;
+                }
+                Err(e) => {
+                    warn!(
+                        "Handshake failed with protocol version {} (attempt {}): {}",
+                        current_version, attempt + 1, e
+                    );
+                    
+                    // Try next protocol version (descending order from current)
+                    current_version = match current_version {
+                        6 => 5,   // Try Kaspa v5
+                        5 => 4,   // Try Kaspa v4
+                        4 => 3,   // Try Kaspa v3
+                        3 => 2,   // Try Kaspa v2
+                        _ => break, // Give up
+                    };
+                }
+            }
+        }
+        
+        let peer_version = peer_version.ok_or_else(|| {
+            ProtocolError::from_reject_message("Failed to establish handshake with any protocol version".to_string())
+        })?;
 
         // 3. Subscribe to address-related messages
         let addresses_receiver = router.subscribe(vec![KaspadMessagePayloadType::Addresses]);
@@ -240,14 +276,26 @@ impl DnsseedNetAdapter {
             .map_err(|e| {
                 // Enhanced error classification for better debugging
                 match e {
-                    kaspa_p2p_lib::ConnectionError::ProtocolError(_) => {
-                        KaseederError::Protocol(format!("Protocol error connecting to {}: {}", address, e))
+                    kaspa_p2p_lib::ConnectionError::ProtocolError(proto_err) => {
+                        // Check if it's a protocol version mismatch
+                        if proto_err.to_string().contains("version") || proto_err.to_string().contains("protocol") {
+                            KaseederError::ProtocolVersionMismatch(format!("Protocol version mismatch connecting to {}: {}", address, proto_err))
+                        } else {
+                            KaseederError::Protocol(format!("Protocol error connecting to {}: {}", address, proto_err))
+                        }
                     }
                     kaspa_p2p_lib::ConnectionError::NoAddress => {
                         KaseederError::InvalidAddress(format!("Invalid address format for {}: {}", address, e))
                     }
-                    kaspa_p2p_lib::ConnectionError::IoError(_) => {
-                        KaseederError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("I/O error connecting to {}: {}", address, e)))
+                    kaspa_p2p_lib::ConnectionError::IoError(ref io_err) => {
+                        // Check if it's a connection refused or timeout
+                        if io_err.kind() == std::io::ErrorKind::ConnectionRefused {
+                            KaseederError::PeerUnavailable(format!("Peer {} refused connection: {}", address, io_err))
+                        } else if io_err.kind() == std::io::ErrorKind::TimedOut {
+                            KaseederError::NetworkTimeout(format!("Connection timeout to {}: {}", address, io_err))
+                        } else {
+                            KaseederError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("I/O error connecting to {}: {}", address, e)))
+                        }
                     }
                     _ => {
                         KaseederError::ConnectionFailed(format!("Connection failed to {}: {}", address, e))

@@ -13,13 +13,12 @@ impl DnsSeedDiscovery {
     ) -> Vec<String> {
         match params {
             crate::config::NetworkParams::Mainnet { .. } => vec![
+                // Official Kaspa DNS seeders from rusty-kaspa
+                "mainnet-dnsseed-1.kaspanet.org".to_string(),
+                "mainnet-dnsseed-2.kaspanet.org".to_string(),
                 "seeder1.kaspad.net".to_string(),
                 "seeder2.kaspad.net".to_string(),
                 "seeder3.kaspad.net".to_string(),
-                "seeder4.kaspad.net".to_string(),
-                "kaspadns.kaspacalc.net".to_string(),
-                "n-mainnet.kaspa.ws".to_string(),
-
             ],
             crate::config::NetworkParams::Testnet { suffix, .. } => vec![
                 format!("seed{}.testnet.kaspa.org", suffix),
@@ -86,7 +85,7 @@ mod tests {
 
         let testnet_params = NetworkParams::Testnet {
             suffix: 10,
-            default_port: 16110,
+            default_port: 16211,
         };
         let testnet_servers =
             DnsSeedDiscovery::get_dns_seeders_from_network_params(&testnet_params);

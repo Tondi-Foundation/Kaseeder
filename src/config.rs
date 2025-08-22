@@ -402,11 +402,11 @@ impl Config {
         if self.testnet {
             NetworkParams::Testnet {
                 suffix: self.net_suffix,
-                default_port: 16110, // Default testnet port
+                default_port: 16211, // Default testnet-10 port (corrected from rusty-kaspa)
             }
         } else {
             NetworkParams::Mainnet {
-                default_port: 16110, // Default mainnet port
+                default_port: 16111, // Default mainnet port (corrected from rusty-kaspa)
             }
         }
     }
@@ -569,13 +569,13 @@ mod tests {
     fn test_network_params() {
         let config = Config::new();
         let params = config.network_params();
-        assert_eq!(params.default_port(), 16110);
+        assert_eq!(params.default_port(), 16111);
 
         let mut testnet_config = Config::new();
         testnet_config.testnet = true;
         testnet_config.net_suffix = 10;
         let testnet_params = testnet_config.network_params();
-        assert_eq!(testnet_params.default_port(), 16110);
+        assert_eq!(testnet_params.default_port(), 16211);
     }
 
     #[test]
