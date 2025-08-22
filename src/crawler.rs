@@ -140,27 +140,30 @@ impl Crawler {
                 self.address_manager.address_count()
             );
 
-            // Only try DNS seeding if we have no addresses at all
-            if peers.is_empty() && self.address_manager.address_count() == 0 {
-                info!("No addresses at all, trying DNS seeding...");
-                self.seed_from_dns().await?;
-                let peers_after_dns = self.address_manager.addresses(self.config.threads);
-                info!(
-                    "After DNS seeding: Addresses() returned {} peers",
-                    peers_after_dns.len()
-                );
+            // More aggressive DNS seeding strategy (from previous commit)
+            if peers.is_empty() {
+                if self.address_manager.address_count() < 1000 {
+                    // Force DNS seeding to test our improvements (from previous commit)
+                    info!("Forcing DNS seeding to discover more addresses (current: {})", self.address_manager.address_count());
+                    self.seed_from_dns().await?;
+                    let peers_after_dns = self.address_manager.addresses(self.config.threads);
+                    info!(
+                        "After DNS seeding: Addresses() returned {} peers",
+                        peers_after_dns.len()
+                    );
 
-                // If still no peers, sleep and retry
-                if peers_after_dns.is_empty() {
-                    info!("No addresses discovered - waiting 30 seconds before retry");
+                    // If still no peers, sleep and retry
+                    if peers_after_dns.is_empty() {
+                        info!("No addresses discovered - waiting 10 seconds before retry");
+                        tokio::time::sleep(Duration::from_secs(10)).await;
+                        continue;
+                    }
+                } else {
+                    // If we have many nodes but none are stale, wait shorter before retrying
+                    info!("No stale addresses available - waiting 30 seconds before retry");
                     tokio::time::sleep(Duration::from_secs(30)).await;
                     continue;
                 }
-            } else if peers.is_empty() {
-                // If we have nodes but none are stale, wait longer before retrying
-                info!("No stale addresses available - waiting 60 seconds before retry");
-                tokio::time::sleep(Duration::from_secs(60)).await;
-                continue;
             }
 
             // Process peers (like Go version)
