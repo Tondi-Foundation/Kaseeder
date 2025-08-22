@@ -13,14 +13,16 @@ impl DnsSeedDiscovery {
     ) -> Vec<String> {
         match params {
             crate::config::NetworkParams::Mainnet { .. } => vec![
-                // Working DNS seeders (verified by test script)
+                // Kaspa官方DNS种子服务器（活跃的v7节点）
+                "seeder.kaspad.net".to_string(),
+                "seeder.kaspanet.org".to_string(),
+                // 主要DNS种子服务器（已验证可用）
                 "seeder1.kaspad.net".to_string(),
                 "seeder2.kaspad.net".to_string(),
                 "seeder3.kaspad.net".to_string(),
-                // Additional working seeders
-                "dnsseed.kaspa.org".to_string(),
-                // Fallback: try some IP-based seeders
-                "seed.kaspa.org".to_string(),
+                "seeder4.kaspad.net".to_string(),
+                "kaspadns.kaspacalc.net".to_string(),
+                "n-mainnet.kaspa.ws".to_string(),
             ],
             crate::config::NetworkParams::Testnet { suffix, .. } => vec![
                 // For testnet, we'll use mainnet seeders as fallback

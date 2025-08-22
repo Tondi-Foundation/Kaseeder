@@ -15,10 +15,14 @@ impl DnsSeedConfig {
     pub fn default() -> Self {
         Self {
             mainnet_servers: vec![
+                // Kaspa Official DNS Seed Servers
+                "seeder.kaspad.net".to_string(),
+                "seeder.kaspanet.org".to_string(),
                 "seeder1.kaspad.net".to_string(),
                 "seeder2.kaspad.net".to_string(),
                 "seeder3.kaspad.net".to_string(),
                 "seeder4.kaspad.net".to_string(),
+                // Kaspa Community DNS Seed Servers
                 "kaspadns.kaspacalc.net".to_string(),
                 "n-mainnet.kaspa.ws".to_string(),
             ],

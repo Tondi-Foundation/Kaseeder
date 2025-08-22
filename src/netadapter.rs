@@ -7,7 +7,7 @@ use kaspa_p2p_lib::{
     PeerKey, Router,
     common::ProtocolError,
     make_message,
-    pb::{VersionMessage, kaspad_message::Payload},
+    pb::{VersionMessage, kaspad_message::Payload, RequestAddressesMessage},
 };
 use kaspa_utils_tower::counters::TowerConnectionCounters;
 use std::sync::Arc;
@@ -60,46 +60,28 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
         // 2. Perform handshake with protocol version negotiation
         debug!("Starting handshake with peer");
 
-        // Simplified protocol version negotiation like Go version
-        let mut current_version = 6; // Start with latest stable version
-        let mut peer_version = None;
+        // Force protocol version 7 to connect to active Crescendo nodes (v6 nodes are "zombie" nodes)
+        let mut version_msg = self.version_message.clone();
+        version_msg.protocol_version = 7; // Force v7 for active Crescendo nodes
 
-        // Try up to 3 different protocol versions (reduced from 5)
-        for attempt in 0..3 {
-            let mut version_msg = self.version_message.clone();
-            version_msg.protocol_version = current_version;
-
-            match handshake.handshake(version_msg.clone()).await {
-                Ok(version) => {
-                    let user_agent = version.user_agent.clone();
-                    peer_version = Some(version);
-                    info!(
-                        "Handshake completed with peer using protocol version {}. User agent: {}",
-                        current_version, user_agent
-                    );
-                    break;
-                }
-                Err(e) => {
-                    debug!(
-                        "Handshake failed with protocol version {} (attempt {}): {}",
-                        current_version,
-                        attempt + 1,
-                        e
-                    );
-
-                    // Try next protocol version (descending order from current)
-                    current_version = match current_version {
-                        6 => 5,     // Try Kaspa v5
-                        5 => 4,     // Try Kaspa v4
-                        _ => break, // Give up after trying 3 versions
-                    };
-                }
+        let peer_version = match handshake.handshake(version_msg.clone()).await {
+            Ok(version) => {
+                let user_agent = version.user_agent.clone();
+                info!(
+                    "Handshake completed with peer using protocol version 7. User agent: {}",
+                    user_agent
+                );
+                Some(version)
             }
-        }
+            Err(e) => {
+                debug!("Handshake failed with protocol version 7: {}", e);
+                None
+            }
+        };
 
         let _peer_version = peer_version.ok_or_else(|| {
             ProtocolError::from_reject_message(
-                "Failed to establish handshake with any protocol version".to_string(),
+                "Failed to establish handshake with protocol version 7".to_string(),
             )
         })?;
 
@@ -107,7 +89,7 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
         let all_messages_receiver = router.subscribe(vec![
             KaspadMessagePayloadType::Addresses,
             KaspadMessagePayloadType::RequestAddresses,
-            KaspadMessagePayloadType::Ping,
+            // Remove Ping from here to avoid duplicate subscription conflict
         ]);
 
         // 4. Register message flows before Ready exchange (rusty-kaspa style)
@@ -117,7 +99,23 @@ impl ConnectionInitializer for KaseederConnectionInitializer {
         handshake.exchange_ready_messages().await?;
         debug!("Ready exchange completed, handshake fully established");
 
-        // 6. Start ping-pong handler to keep connection alive
+        // 6. Send address request to get peer addresses (Kaspa P2P standard)
+        debug!("Sending address request to peer");
+        let request_addresses_msg = make_message!(
+            Payload::RequestAddresses,
+            RequestAddressesMessage { 
+                include_all_subnetworks: false, 
+                subnetwork_id: None 
+            }
+        );
+        
+        if let Err(e) = router.enqueue(request_addresses_msg).await {
+            debug!("Failed to send address request: {}", e);
+        } else {
+            debug!("Address request sent successfully");
+        }
+
+        // 7. Start ping-pong handler to keep connection alive
         let router_clone = router.clone();
         tokio::spawn(async move {
             if let Err(e) = DnsseedNetAdapter::handle_ping_pong(router_clone).await {
@@ -420,7 +418,7 @@ impl DnsseedNetAdapter {
             .map(|peer| {
                 let props = peer.properties();
                 VersionMessage {
-                    protocol_version: props.protocol_version,
+                    protocol_version: 7, // Force v7 for active Crescendo nodes (ignore rusty-kaspa default)
                     services: 0,
                     timestamp: unix_now() as i64,
                     address: None,
@@ -438,7 +436,7 @@ impl DnsseedNetAdapter {
             .unwrap_or_else(|| {
                 warn!("Could not find peer properties for {}", peer_key);
                 VersionMessage {
-                    protocol_version: 0,
+                    protocol_version: 7, // Force v7 for active Crescendo nodes
                     services: 0,
                     timestamp: unix_now() as i64,
                     address: None,
