@@ -1,7 +1,5 @@
 # Kaspa DNS Seeder (Rust Version)
 
-[![ISC License](http://img.shields.io/badge/license-ISC-blue.svg)](https://choosealicense.com/licenses/isc/)
-
 Kaspa DNS Seeder exposes a list of known peers to any new peer joining the Kaspa network via the DNS protocol. This is the Rust implementation, fully aligned with the Go version with enhanced performance optimizations.
 
 When DNSSeeder is started for the first time, it will connect to the kaspad node specified with the `--seeder` flag and listen for `addr` messages. These messages contain the IPs of all peers known by the node. DNSSeeder will then connect to each of these peers, listen for their `addr` messages, and continue to traverse the network in this fashion. DNSSeeder maintains a list of all known peers and periodically checks that they are online and available. The list is stored on disk in a json file, so on subsequent start ups the kaspad node specified with `--seeder` does not need to be online.
