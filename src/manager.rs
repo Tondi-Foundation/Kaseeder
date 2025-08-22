@@ -512,7 +512,7 @@ impl AddressManager {
                 );
             }
             return Err(crate::errors::KaseederError::Io(e));
-
+        }
 
         Ok(())
     }
