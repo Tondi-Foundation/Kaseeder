@@ -1,141 +1,322 @@
+# ============================================================================
 # Kaspa DNS Seeder Configuration Example
-# This file demonstrates all available configuration options including advanced logging
+# ============================================================================
+# This file demonstrates ALL available configuration options with detailed
+# explanations and usage examples. Copy this file to 'kaseeder.conf' and
+# modify as needed for your setup.
+#
+# Quick Start:
+# 1. Copy this file: cp kaseeder.conf.example kaseeder.conf
+# 2. Edit basic settings (host, nameserver, app_dir)  
+# 3. Run: ./kaseeder --config kaseeder.conf
+#
+# For production use, ensure:
+# - Set proper DNS hostname and nameserver
+# - Configure appropriate app_dir path
+# - Adjust thread count for your hardware
+# - Set optimal log level for monitoring
+# ============================================================================
 
-# Basic configuration
-app_dir = "~/.kaseeder"
-known_peers = "127.0.0.1:16110,127.0.0.1:16111"
+# ============================================================================
+# BASIC CONFIGURATION (Required Settings)
+# ============================================================================
+
+# Your DNS hostname that will serve peer addresses
+# This should be a valid domain name pointing to your server
+# Example: "seed.example.com", "kaspa-seed.myserver.net"
 host = "seed.kaspa.org"
-listen = "0.0.0.0:5354"
+
+# Your authoritative nameserver that handles DNS queries
+# Must be configured to delegate queries for 'host' to this seeder
+# Example: "ns1.example.com", "nameserver.myserver.net"
 nameserver = "ns1.kaspa.org"
-default_seeder = "127.0.0.1:16110"
-profile = "6060"
-grpc_listen = "0.0.0.0:3737"
-min_protocol_version = 1
-min_user_agent_version = "0.12.0"
-netsuffix = 0
-no_log_files = false
-log_level = "info"
+
+# DNS server listen address and port
+# Format: "IP:PORT" or ":PORT" for all interfaces
+# Common values:
+# - "0.0.0.0:8354" - Listen on all interfaces, port 8354
+# - "127.0.0.1:5354" - Listen only on localhost, port 5354
+# - ":53" - Listen on all interfaces, standard DNS port (requires root)
+listen = "0.0.0.0:8354"
+
+# gRPC API listen address for monitoring and control
+# Used for metrics, health checks, and management commands
+# Format: "IP:PORT"
+# Common values:
+# - "0.0.0.0:6737" - Listen on all interfaces (for remote monitoring)
+# - "127.0.0.1:3737" - Listen only on localhost (more secure)
+grpc_listen = "0.0.0.0:6737"
+
+# Application data directory where peers.json and logs are stored
+# Supports ~ expansion for home directory
+# Examples:
+# - "~/.kaseeder" - User home directory
+# - "./data/async_test" - Relative to current directory
+# - "/var/lib/kaseeder" - Absolute system path
+app_dir = "./data/async_test"
+
+# ============================================================================
+# THREADING AND PERFORMANCE
+# ============================================================================
+
+# Number of crawler threads for peer discovery
+# Recommended values:
+# - 4-8 threads for most servers
+# - 8-16 threads for high-performance servers
+# - 2-4 threads for resource-constrained environments
+# Valid range: 1-32
 threads = 8
 
-# Advanced logging configuration with rotation support
+# ============================================================================
+# NETWORK PARAMETERS
+# ============================================================================
+
+# Kaspa network configuration
+# For mainnet: use default values (testnet = false)
+# For testnet: set testnet = true and specify suffix
+testnet = false
+
+# Testnet network suffix (only used when testnet = true)
+# Currently only testnet-11 (suffix = 11) is supported
+# Valid values: 0 (for mainnet), 11 (for testnet-11)
+net_suffix = 0
+
+# Protocol version requirements
+# Minimum protocol version that peers must support
+# Usually 0 or 1 for current Kaspa versions
+min_proto_ver = 1
+
+# Minimum user agent version requirement
+# Filters out older client versions
+# Format: semantic version string like "0.12.0"
+# Leave commented to accept all versions
+min_ua_ver = "0.12.0"
+
+# ============================================================================
+# PEER DISCOVERY SETTINGS
+# ============================================================================
+
+# Known peer seeds for initial discovery
+# Comma-separated list of IP:PORT or hostname:PORT addresses
+# Leave empty to use built-in DNS seeders (recommended)
+# Example: "192.168.1.100:16111,kaspa-node.example.com:16111"
+known_peers = ""
+
+# Default seeder for initial bootstrapping  
+# Single IP:PORT or hostname:PORT address
+# Leave empty to use built-in DNS seeders (recommended)
+# Example: "bootstrap.kaspa.org:16111"
+seeder = ""
+
+# Alternative names for the above settings (Go version compatibility)
+# You can use either the names above or these aliases:
+# peers = ""           # Same as known_peers
+# default_seeder = ""  # Same as seeder
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+
+# Log level controls verbosity of output
+# Available levels (from most to least verbose):
+# - "trace" - Extremely detailed debugging information
+# - "debug" - Detailed debugging information  
+# - "info"  - General information messages (recommended)
+# - "warn"  - Warning messages only
+# - "error" - Error messages only
+log_level = "info"
+
+# Whether to disable log files completely
+# true = only console output, false = console + file logging
+no_log_files = false
+
+# Error log file path (for error-level messages)
+# Leave empty to disable separate error logging
+# Example: "logs/kaseeder_error.log", "/var/log/kaseeder/error.log"
+error_log_file = "logs/kaseeder_error.log"
+
+# ============================================================================
+# ADVANCED LOGGING & ROTATION
+# ============================================================================
+# Note: These settings control the new log rotation system
+# They provide advanced features like compression and automatic cleanup
+
 [advanced_logging]
-# Log rotation strategy: "daily", "hourly", "size", "hybrid"
-# - daily: Rotate logs every day at midnight
-# - hourly: Rotate logs every hour
-# - size: Rotate logs when they reach max_file_size_mb
-# - hybrid: Daily rotation with size limit
+# Log rotation strategy determines when log files are rotated
+# Available strategies:
+# - "daily"  - Rotate logs daily at midnight UTC (recommended for production)
+# - "hourly" - Rotate logs every hour (for high-volume debugging)
+# - "size"   - Rotate when file reaches max_file_size_mb
+# - "hybrid" - Daily rotation + size limit (best for most cases)
 rotation_strategy = "daily"
 
-# Time-based rotation interval (in hours, for hourly rotation)
+# Time-based rotation interval (hours) - only for hourly rotation
+# Examples: 1 = every hour, 6 = every 6 hours, 24 = daily
+# Ignored for other rotation strategies
 rotation_interval_hours = 24
 
-# Whether to compress rotated log files (saves disk space)
-compress_rotated_logs = true
-
-# Compression level (1-9, where 9 is maximum compression)
-# Higher compression = smaller files but slower compression
-compression_level = 6
-
-# Whether to include hostname in log files
-include_hostname = true
-
-# Whether to include process ID in log files
-include_pid = true
-
-# Custom log format pattern (optional)
-# Available placeholders: {timestamp}, {level}, {target}, {message}, {file}, {line}
-# custom_format = "{timestamp} [{level}] {target}: {message}"
-
-# Whether to enable log buffering (improves performance)
-enable_buffering = true
-
-# Buffer size in bytes (64KB default)
-buffer_size_bytes = 65536
-
-# Maximum log file size in MB before rotation
+# Log file size limits (MB)
+# Files will be rotated when they exceed this size
+# Recommended: 50-200 MB depending on disk space
 max_file_size_mb = 100
 
-# Number of rotated log files to keep
+# Retention policy - number of old log files to keep
+# Older files are automatically deleted to save disk space
+# Recommended: 7-30 files depending on storage capacity
 max_rotated_files = 10
 
-# Whether to enable log file monitoring
+# Compression settings - compress rotated logs to save disk space
+# Highly recommended for production (saves 70-80% disk space)
+compress_rotated_logs = true
+
+# Compression level (1-9)
+# 1 = fastest compression, larger files
+# 9 = maximum compression, smaller files, slower
+# 6 = good balance of speed and compression ratio (recommended)
+compression_level = 6
+
+# Log file metadata - whether to include system info in filenames
+include_hostname = true  # Include hostname in log filenames
+include_pid = true       # Include process ID in log filenames
+
+# Advanced buffering for high-performance logging
+# Enable buffering to reduce I/O overhead (recommended for production)
+enable_buffering = true
+
+# Buffer size in bytes
+# Larger buffers = better performance but more memory usage
+# 64KB (65536) is optimal for most cases
+buffer_size_bytes = 65536
+
+# File monitoring - monitor log file health and rotation status
 enable_file_monitoring = true
 
-# Log file monitoring interval in seconds
+# How often to check log file status (seconds)
+# 300 seconds (5 minutes) is usually sufficient
 file_monitoring_interval = 300
 
-# Performance monitoring configuration
+# Custom log format (optional)
+# Available placeholders: {timestamp}, {level}, {target}, {message}, {file}, {line}
+# Leave commented to use default format
+# custom_format = "{timestamp} [{level}] {target}: {message}"
+
+# ============================================================================
+# PERFORMANCE MONITORING
+# ============================================================================
+# Note: These settings control system monitoring and metrics collection
+
 [monitoring]
-# Whether to enable performance monitoring
+# Enable comprehensive performance monitoring
+# Recommended: true for production, false for minimal resource usage
 enabled = true
 
-# Monitoring interval in seconds
+# How often to collect and log performance metrics (seconds)
+# 60 seconds provides good balance of detail vs. overhead
 interval_seconds = 60
 
-# Whether to collect memory usage statistics
-collect_memory_stats = true
+# Resource monitoring options - what metrics to collect
+collect_memory_stats = true    # RAM usage tracking
+collect_cpu_stats = true       # CPU utilization tracking  
+collect_network_stats = true   # Network I/O statistics
+collect_disk_stats = true      # Disk I/O statistics
 
-# Whether to collect CPU usage statistics
-collect_cpu_stats = true
-
-# Whether to collect network statistics
-collect_network_stats = true
-
-# Whether to collect disk I/O statistics
-collect_disk_stats = true
-
-# Maximum number of historical data points to keep
+# Historical data retention
+# Number of metric snapshots to keep in memory for trending
+# 1000 points = ~16 hours at 60-second intervals
 max_history_points = 1000
 
-# Whether to export metrics via HTTP endpoint
+# HTTP metrics endpoint for external monitoring
+# Expose metrics on HTTP endpoint for Prometheus/Grafana integration
 http_metrics = false
 
-# HTTP metrics port (for Prometheus scraping)
+# Port for HTTP metrics endpoint
+# Standard Prometheus port is 9090, but use any available port
+# Only used if http_metrics = true
 http_metrics_port = 9090
 
-# Network configuration
-[network]
-# Connection timeout in seconds
-connection_timeout = 5
+# ============================================================================
+# DEBUGGING AND PROFILING
+# ============================================================================
 
-# Address response timeout in seconds
-address_timeout = 8
+# Profiling port (0 to disable)
+# Enables Go-style pprof profiling on specified port
+# Useful for performance analysis and debugging
+# Recommended: 0 for production, 6060 for development
+# Valid range: 0 (disabled), 1024-65535
+profile = "0"
 
-# Maximum concurrent connections per thread
-max_concurrent_connections = 3
+# ============================================================================
+# CONFIGURATION EXAMPLES FOR DIFFERENT ENVIRONMENTS
+# ============================================================================
 
-# DNS configuration
-[dns]
-# Maximum addresses to return in DNS responses
-max_addresses = 16
+# Example 1: High-Performance Production Setup
+# Uncomment and modify these settings for a high-performance server:
+#
+# threads = 16
+# rotation_strategy = "hybrid"  
+# max_file_size_mb = 200
+# max_rotated_files = 30
+# compression_level = 9
+# http_metrics = true
+# http_metrics_port = 9090
 
-# TTL for DNS records in seconds
-ttl = 300
+# Example 2: Development/Testing Setup  
+# Uncomment and modify these settings for development:
+#
+# log_level = "debug"
+# rotation_strategy = "size"
+# max_file_size_mb = 10
+# max_rotated_files = 5
+# compress_rotated_logs = false
+# profile = "6060"
 
-# Whether to enable IPv6 support
-enable_ipv6 = true
+# Example 3: Resource-Constrained Environment
+# Uncomment and modify these settings for limited resources:
+#
+# threads = 4
+# no_log_files = true  # Console only
+# monitoring.enabled = false
+# advanced_logging.enable_buffering = false
 
-# gRPC configuration
-[grpc]
-# Maximum message size in bytes
-max_message_size = 1048576
+# Example 4: Testnet Configuration
+# Uncomment and modify these settings for testnet:
+#
+# testnet = true
+# net_suffix = 11
+# host = "testnet-seed.example.com"
+# nameserver = "ns1.example.com"
+# app_dir = "./data/testnet"
 
-# Keep-alive interval in seconds
-keep_alive_interval = 30
+# ============================================================================
+# CONFIGURATION TIPS AND BEST PRACTICES
+# ============================================================================
 
-# Keep-alive timeout in seconds
-keep_alive_timeout = 10
+# Performance Tips:
+# 1. Set threads = number of CPU cores for optimal performance
+# 2. Use hybrid log rotation for production environments
+# 3. Enable log compression to save disk space
+# 4. Monitor memory usage with collect_memory_stats = true
+# 5. Use SSD storage for app_dir for better I/O performance
 
-# Performance tuning
-[performance]
-# Crawler sleep interval between rounds in seconds
-crawler_sleep_interval = 6
+# Security Tips:
+# 1. Use 127.0.0.1 for grpc_listen if no remote monitoring needed
+# 2. Set profile = "0" in production to disable profiling
+# 3. Use firewall rules to restrict access to DNS and gRPC ports
+# 4. Regularly update to latest version for security patches
 
-# Maximum concurrent polls per round
-max_concurrent_polls = 24
+# Monitoring Tips:
+# 1. Enable http_metrics for Prometheus integration
+# 2. Set appropriate log_level (info for production, debug for troubleshooting)
+# 3. Monitor log rotation and disk usage regularly
+# 4. Set up alerts for connection failures and high resource usage
 
-# Quality score decay factor for node ranking
-quality_decay_factor = 0.95
+# Troubleshooting Tips:
+# 1. Use log_level = "debug" for detailed troubleshooting
+# 2. Check error_log_file for specific error messages
+# 3. Enable profile port for performance analysis
+# 4. Verify DNS resolution and network connectivity
+# 5. Check app_dir permissions and disk space
 
-# Minimum quality score for node selection
-min_quality_score = 0.1
+# ============================================================================
+# END OF CONFIGURATION
+# ============================================================================
