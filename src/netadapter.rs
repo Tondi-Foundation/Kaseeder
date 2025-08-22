@@ -270,10 +270,10 @@ impl DnsseedNetAdapter {
     ) -> Result<(VersionMessage, Vec<NetAddress>)> {
         info!("Connecting to peer: {}", address);
 
-        // Implement exponential backoff reconnection strategy with optimized timeouts
+        // Implement fast failure strategy for better performance
         let mut retry_count = 0;
-        let max_retries = 3;  // Reduced from 5 to 3 for faster failure detection
-        let base_delay = Duration::from_secs(1);  // Reduced from 2 to 1 second for faster retry
+        let max_retries = 1;  // Reduced to 1 for fastest failure detection
+        let base_delay = Duration::from_secs(1);  // Keep 1 second for single retry
 
         loop {
             match self.try_connect_peer(address).await {
@@ -317,7 +317,7 @@ impl DnsseedNetAdapter {
             .connect_peer_with_retries(
                 address.to_string(),
                 1,                      // Single connection attempt
-                Duration::from_secs(10), // Increased connection timeout from 5 to 10 seconds
+                Duration::from_secs(5),  // Reduced connection timeout to 5 seconds for faster failure
             )
             .await
             .map_err(|e| {
@@ -382,8 +382,8 @@ impl DnsseedNetAdapter {
                     }
                 }
             }
-            _ = tokio::time::sleep(Duration::from_secs(15)) => {  // Reduced to 15 seconds for faster failure
-                debug!("Timeout waiting for addresses from peer {} (15s)", peer_key);
+            _ = tokio::time::sleep(Duration::from_secs(8)) => {   // Reduced to 8 seconds for faster failure
+                debug!("Timeout waiting for addresses from peer {} (8s)", peer_key);
                 Ok(Vec::new())
             }
         }
