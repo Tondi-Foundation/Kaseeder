@@ -1,7 +1,7 @@
 
 use crate::errors::Result;
 use crate::types::{CrawlerStats, NetAddress};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -15,9 +15,7 @@ const DEFAULT_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(60 * 60); // 1 
 const DEFAULT_STALE_BAD_TIMEOUT: Duration = Duration::from_secs(2 * 60 * 60); // 2 hours (same as Go version)
 
 
-// Development mode constants (for local testing)
-#[cfg(debug_assertions)]
-const DEV_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(30); // 30 seconds for development
+
 const PRUNE_EXPIRE_TIMEOUT: Duration = Duration::from_secs(8 * 60 * 60); // 8 hours, same as Go version
 const PRUNE_ADDRESS_INTERVAL: Duration = Duration::from_secs(60); // 1 minute (same as Go version)
 const DUMP_ADDRESS_INTERVAL: Duration = Duration::from_secs(2 * 60); // 2 minutes (same as Go version)
@@ -237,8 +235,8 @@ impl AddressManager {
             })
             .collect();
 
-        // Sort stale candidates by last attempt time (oldest first)
-        stale_candidates.sort_by(|a, b| {
+        // Sort stale candidates by last attempt time (oldest first) - optimized sorting
+        stale_candidates.sort_unstable_by(|a, b| {
             a.value().last_attempt.cmp(&b.value().last_attempt)
         });
 
@@ -254,15 +252,14 @@ impl AddressManager {
                 .iter()
                 .filter(|entry| {
                     let node = entry.value();
-                    let addr_key = format!("{}:{}", node.address.ip, node.address.port);
-                    // Don't include nodes already selected
-                    !addresses.iter().any(|addr| format!("{}:{}", addr.ip, addr.port) == addr_key) &&
+                    // Use more efficient comparison without string formatting
+                    !addresses.iter().any(|addr| addr.ip == node.address.ip && addr.port == node.address.port) &&
                     self.is_good(node)
                 })
                 .collect();
 
-            // Sort good candidates by last attempt time
-            good_candidates.sort_by(|a, b| {
+            // Sort good candidates by last attempt time - optimized sorting
+            good_candidates.sort_unstable_by(|a, b| {
                 a.value().last_attempt.cmp(&b.value().last_attempt)
             });
 
@@ -272,26 +269,9 @@ impl AddressManager {
         }
 
         // Log detailed status for debugging
-        let mut good_count = 0;
-        let mut stale_count = 0;
-        let mut bad_count = 0;
-        let mut new_count = 0;
 
-        for entry in self.nodes.iter() {
-            let node = entry.value();
-            if node.last_success.eq(&UNIX_EPOCH) {
-                new_count += 1;
-            } else if self.is_good(node) {
-                good_count += 1;
-            } else if self.is_stale(node) {
-                stale_count += 1;
-            } else {
-                bad_count += 1;
-            }
-        }
 
-        debug!("Node status: Good:{} Stale:{} Bad:{} New:{}", good_count, stale_count, bad_count, new_count);
-        debug!("Found {} candidates total", addresses.len());
+
         info!("Selected {} addresses for crawling", addresses.len());
         
         addresses
@@ -303,13 +283,7 @@ impl AddressManager {
         if let Some(mut node) = self.nodes.get_mut(&key) {
             node.record_connection_attempt(success, error.clone());
             
-            if success {
-                debug!("Node {}:{} connection successful, quality score: {:.2}", 
-                       address.ip, address.port, node.quality_score);
-            } else {
-                debug!("Node {}:{} connection failed: {:?}, quality score: {:.2}", 
-                       address.ip, address.port, error, node.quality_score);
-            }
+
         }
     }
 
@@ -436,7 +410,7 @@ impl AddressManager {
 
         /// Clean up expired and bad addresses
     fn prune_peers(&self) {
-        let mut pruned = 0;
+        let mut _pruned = 0;
         let mut good = 0;
         let mut stale = 0;
         let mut bad = 0;
@@ -451,7 +425,7 @@ impl AddressManager {
 
             if self.is_expired(node, now) {
                 to_remove.push(entry.key().clone());
-                pruned += 1;
+                // Count pruned addresses
             } else if self.is_good(node) {
                 good += 1;
                 if node.address.ip.is_ipv4() {
@@ -471,8 +445,8 @@ impl AddressManager {
             self.nodes.remove(&key);
         }
 
-        let total = self.nodes.len();
-        debug!("Pruned {} addresses. {} left.", pruned, total);
+        let _total = self.nodes.len();
+
         info!(
             "Known nodes: Good:{} [4:{}, 6:{}] Stale:{} Bad:{}",
             good, ipv4, ipv6, stale, bad
@@ -525,7 +499,7 @@ impl AddressManager {
             }
             return Err(crate::errors::KaseederError::Io(e));
         } else {
-            debug!("Successfully saved {} nodes to {}", nodes.len(), self.peers_file);
+    
         }
         
         Ok(())
@@ -586,10 +560,7 @@ impl AddressManager {
             if node.last_attempt == node.last_seen {
                 return true; // New node is immediately available for polling
             }
-            // For attempted new nodes, use much shorter interval to allow more nodes to be stale
-            #[cfg(debug_assertions)]
-            let poll_interval = Duration::from_secs(1); // 1 second in debug mode
-            #[cfg(not(debug_assertions))]
+            // For attempted new nodes, use production interval
             let poll_interval = Duration::from_secs(5); // 5 seconds in production
             
             return last_attempt_elapsed > poll_interval;
@@ -702,7 +673,7 @@ mod tests {
         assert!(!test_app_dir.exists());
 
         // Create address manager - this should create the directory
-        let manager = AddressManager::new(&test_app_dir_str, 16111).unwrap();
+        let manager = AddressManager::new(&test_app_dir_str, 0).unwrap();
 
         // Verify the directory was created
         assert!(test_app_dir.exists());
@@ -729,7 +700,7 @@ mod tests {
         assert!(!test_app_dir.exists());
 
         // Create address manager - this should create the nested directory
-        let manager = AddressManager::new(&test_app_dir_str, 16111).unwrap();
+        let manager = AddressManager::new(&test_app_dir_str, 0).unwrap();
 
         // Verify the nested directory was created
         assert!(test_app_dir.exists());

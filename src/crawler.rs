@@ -133,15 +133,9 @@ impl Crawler {
             let peers = self.address_manager.addresses(self.config.threads);
             info!("Main loop: Addresses() returned {} peers, total nodes: {}", peers.len(), self.address_manager.address_count());
 
-            // Force DNS seeding to test our improvements
-            if self.address_manager.address_count() < 1000 {
-                info!("Forcing DNS seeding to discover more addresses (current: {})", self.address_manager.address_count());
-                self.seed_from_dns().await?;
-                let peers_after_dns = self.address_manager.addresses(self.config.threads);
-                info!("After DNS seeding: Addresses() returned {} peers", peers_after_dns.len());
-            }
 
-            // If no peers and no addresses at all, try DNS seeding (like Go version)
+
+            // Only try DNS seeding if we have no addresses at all
             if peers.is_empty() && self.address_manager.address_count() == 0 {
                 info!("No addresses at all, trying DNS seeding...");
                 self.seed_from_dns().await?;
@@ -150,37 +144,24 @@ impl Crawler {
                 
                 // If still no peers, sleep and retry
                 if peers_after_dns.is_empty() {
-                    info!("No stale addresses - waiting 10 seconds before retry");
-                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    info!("No addresses discovered - waiting 30 seconds before retry");
+                    tokio::time::sleep(Duration::from_secs(30)).await;
                     continue;
                 }
             } else if peers.is_empty() {
-                // Check if we have nodes but they're all bad - try DNS seeding to get fresh ones
-                let total_nodes = self.address_manager.address_count();
-                if total_nodes > 0 {
-                    info!("No stale addresses but {} total nodes - trying DNS seeding to get fresh addresses", total_nodes);
-                    self.seed_from_dns().await?;
-                    let peers_after_dns = self.address_manager.addresses(self.config.threads);
-                    info!("After DNS seeding: Addresses() returned {} peers", peers_after_dns.len());
-                    
-                    // If still no peers, sleep and retry
-                    if peers_after_dns.is_empty() {
-                        info!("No stale addresses - waiting 10 seconds before retry");
-                        tokio::time::sleep(Duration::from_secs(10)).await;
-                        continue;
-                    }
-                } else {
-                    info!("No stale addresses - waiting 10 seconds before retry");
-                    tokio::time::sleep(Duration::from_secs(10)).await;
-                    continue;
-                }
+                // If we have nodes but none are stale, wait longer before retrying
+                info!("No stale addresses available - waiting 60 seconds before retry");
+                tokio::time::sleep(Duration::from_secs(60)).await;
+                continue;
             }
 
             // Process peers (like Go version)
             info!("Processing {} peers for polling", peers.len());
             
+            // Process peers in parallel with optimized network adapter selection
             for (i, addr) in peers.iter().enumerate() {
                 let permit = self.semaphore.clone().acquire_owned().await?;
+                // Use round-robin distribution for better load balancing
                 let net_adapter = self.net_adapters[i % self.net_adapters.len()].clone();
                 let address = addr.clone();
                 let address_manager = self.address_manager.clone();
