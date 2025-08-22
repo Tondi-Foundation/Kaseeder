@@ -83,7 +83,8 @@ pub struct NetworkMessage {
 
 impl NetworkMessage {
     pub fn version(version_msg: &VersionMessage) -> Self {
-        let payload = bincode::serialize(version_msg).unwrap_or_default();
+        let payload = bincode::serialize(version_msg)
+            .unwrap_or_else(|_| Vec::new());
         Self {
             command: "version".to_string(),
             payload,
@@ -91,7 +92,8 @@ impl NetworkMessage {
     }
 
     pub fn request_addresses(request: &RequestAddressesMessage) -> Self {
-        let payload = bincode::serialize(request).unwrap_or_default();
+        let payload = bincode::serialize(request)
+            .unwrap_or_else(|_| Vec::new());
         Self {
             command: "getaddr".to_string(),
             payload,

@@ -5,7 +5,7 @@ use kaspa_core::time::unix_now;
 use kaspa_p2p_lib::{
     common::ProtocolError,
     make_message,
-    pb::{kaspad_message::Payload, RequestAddressesMessage, VersionMessage, ReadyMessage, AddressesMessage},
+    pb::{kaspad_message::Payload, VersionMessage},
     Adaptor, ConnectionInitializer, Hub, IncomingRoute, KaspadHandshake, KaspadMessagePayloadType,
     PeerKey, Router,
 };
@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};
 use tonic::async_trait;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 /// DNS seeder connection initializer, specifically for address collection

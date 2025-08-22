@@ -1,6 +1,6 @@
 use crate::checkversion::VersionChecker;
 use crate::config::Config;
-use crate::constants::{CRAWLER_SLEEP_INTERVAL, MAX_CONCURRENT_POLLS};
+use crate::constants::MAX_CONCURRENT_POLLS;
 use crate::dns_seed_discovery::DnsSeedDiscovery;
 use crate::errors::{KaseederError, Result};
 use crate::manager::AddressManager;
@@ -8,7 +8,7 @@ use crate::netadapter::DnsseedNetAdapter;
 use crate::types::NetAddress;
 use kaspa_consensus_core::config::Config as ConsensusConfig;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::{mpsc, Mutex, Semaphore};
 use tracing::{debug, error, info, warn};
 
@@ -260,31 +260,7 @@ impl Crawler {
         Ok(())
     }
 
-    /// Poll a single node (with performance statistics)
-    async fn poll_single_peer_with_stats(
-        net_adapter: Arc<DnsseedNetAdapter>,
-        address: NetAddress,
-        address_manager: Arc<AddressManager>,
-        config: Arc<Config>,
-        stats: Arc<Mutex<CrawlerPerformanceStats>>,
-        start_time: Instant,
-    ) -> Result<()> {
-        let result =
-            Self::poll_single_peer(net_adapter, address.clone(), address_manager, config).await;
 
-        // Update performance statistics
-        let poll_duration = start_time.elapsed();
-        let mut stats = stats.lock().await;
-        let duration_ms = poll_duration.as_millis() as f64;
-        stats.average_poll_time_ms = if stats.total_polls == 0 {
-            duration_ms
-        } else {
-            (stats.average_poll_time_ms * stats.total_polls as f64 + duration_ms)
-                / (stats.total_polls + 1) as f64
-        };
-
-        result
-    }
 
     /// Poll a single node with intelligent connection tracking
     async fn poll_single_peer(

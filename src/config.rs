@@ -1,4 +1,5 @@
 use crate::errors::{KaseederError, Result};
+use crate::logging::LoggingConfig;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::net::{IpAddr, SocketAddr};
@@ -80,6 +81,14 @@ pub struct Config {
     pub error_log_file: Option<String>,
     /// Performance analysis port
     pub profile: Option<String>,
+    /// Logging configuration
+    pub logging: LoggingConfig,
+    
+    /// Performance monitoring configuration
+    pub monitoring: MonitoringConfig,
+    
+    /// Advanced logging configuration with rotation support
+    pub advanced_logging: AdvancedLoggingConfig,
 }
 
 impl Config {
@@ -102,6 +111,9 @@ impl Config {
             nologfiles: false,
             error_log_file: Some("logs/kaseeder_error.log".to_string()),
             profile: None,
+            logging: LoggingConfig::default(),
+            monitoring: MonitoringConfig::default(),
+            advanced_logging: AdvancedLoggingConfig::default(),
         }
     }
 
@@ -180,6 +192,12 @@ impl Config {
         if let Some(ref profile) = self.profile {
             self.validate_profile_port(profile, "profile")?;
         }
+
+        // Validate advanced logging configuration
+        self.validate_advanced_logging()?;
+
+        // Validate monitoring configuration
+        self.validate_monitoring()?;
 
         Ok(())
     }
@@ -325,6 +343,113 @@ impl Config {
                 self.validate_address(peer, "known_peers")?;
             }
         }
+        Ok(())
+    }
+
+    /// Validate advanced logging configuration
+    fn validate_advanced_logging(&self) -> Result<()> {
+        // Validate rotation strategy
+        let valid_strategies = ["daily", "hourly", "size", "hybrid"];
+        if !valid_strategies.contains(&self.advanced_logging.rotation_strategy.to_lowercase().as_str()) {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "advanced_logging.rotation_strategy".to_string(),
+                value: self.advanced_logging.rotation_strategy.clone(),
+                expected: "one of: daily, hourly, size, hybrid".to_string(),
+            });
+        }
+
+        // Validate rotation interval
+        if self.advanced_logging.rotation_interval_hours == 0 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "advanced_logging.rotation_interval_hours".to_string(),
+                value: self.advanced_logging.rotation_interval_hours.to_string(),
+                expected: "positive number of hours".to_string(),
+            });
+        }
+
+        // Validate compression level
+        if self.advanced_logging.compression_level < 1 || self.advanced_logging.compression_level > 9 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "advanced_logging.compression_level".to_string(),
+                value: self.advanced_logging.compression_level.to_string(),
+                expected: "number between 1 and 9".to_string(),
+            });
+        }
+
+        // Validate buffer size
+        if self.advanced_logging.buffer_size_bytes == 0 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "advanced_logging.buffer_size_bytes".to_string(),
+                value: self.advanced_logging.buffer_size_bytes.to_string(),
+                expected: "positive buffer size in bytes".to_string(),
+            });
+        }
+
+        // Validate max file size
+        if self.advanced_logging.max_file_size_mb == 0 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "advanced_logging.max_file_size_mb".to_string(),
+                value: self.advanced_logging.max_file_size_mb.to_string(),
+                expected: "positive file size in MB".to_string(),
+            });
+        }
+
+        // Validate max rotated files
+        if self.advanced_logging.max_rotated_files == 0 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "advanced_logging.max_rotated_files".to_string(),
+                value: self.advanced_logging.max_rotated_files.to_string(),
+                expected: "positive number of files".to_string(),
+            });
+        }
+
+        // Validate file monitoring interval
+        if self.advanced_logging.enable_file_monitoring && self.advanced_logging.file_monitoring_interval == 0 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "advanced_logging.file_monitoring_interval".to_string(),
+                value: self.advanced_logging.file_monitoring_interval.to_string(),
+                expected: "positive interval in seconds".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate monitoring configuration
+    fn validate_monitoring(&self) -> Result<()> {
+        if !self.monitoring.enabled {
+            return Ok(());
+        }
+
+        // Validate monitoring interval
+        if self.monitoring.interval_seconds == 0 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "monitoring.interval_seconds".to_string(),
+                value: self.monitoring.interval_seconds.to_string(),
+                expected: "positive interval in seconds".to_string(),
+            });
+        }
+
+        // Validate max history points
+        if self.monitoring.max_history_points == 0 {
+            return Err(KaseederError::InvalidConfigValue {
+                field: "monitoring.max_history_points".to_string(),
+                value: self.monitoring.max_history_points.to_string(),
+                expected: "positive number of history points".to_string(),
+            });
+        }
+
+        // Validate HTTP metrics port if enabled
+        if self.monitoring.http_metrics {
+            if self.monitoring.http_metrics_port < 1024 || self.monitoring.http_metrics_port > 65535 {
+                return Err(KaseederError::InvalidConfigValue {
+                    field: "monitoring.http_metrics_port".to_string(),
+                    value: self.monitoring.http_metrics_port.to_string(),
+                    expected: "port number between 1024 and 65535".to_string(),
+                });
+            }
+        }
+
         Ok(())
     }
 
@@ -562,7 +687,13 @@ impl Config {
             };
 
             if expanded_path.exists() {
-                return Self::load_from_file(expanded_path.to_str().unwrap());
+                return Self::load_from_file(
+                    expanded_path.to_str().ok_or_else(|| {
+                        KaseederError::Config(
+                            format!("Invalid Unicode in config path: {:?}", expanded_path)
+                        )
+                    })?
+                );
             }
         }
 
@@ -620,6 +751,96 @@ pub struct CliOverrides {
 impl Default for Config {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Advanced logging configuration with rotation support
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvancedLoggingConfig {
+    /// Log rotation strategy: "daily", "hourly", "size", "hybrid"
+    pub rotation_strategy: String,
+    /// Time-based rotation interval (in hours, for hourly rotation)
+    pub rotation_interval_hours: u32,
+    /// Whether to compress rotated log files
+    pub compress_rotated_logs: bool,
+    /// Compression level (1-9, where 9 is maximum compression)
+    pub compression_level: u8,
+    /// Whether to include hostname in log files
+    pub include_hostname: bool,
+    /// Whether to include process ID in log files
+    pub include_pid: bool,
+    /// Custom log format pattern
+    pub custom_format: Option<String>,
+    /// Whether to enable log buffering
+    pub enable_buffering: bool,
+    /// Buffer size in bytes
+    pub buffer_size_bytes: usize,
+    /// Maximum log file size in MB before rotation
+    pub max_file_size_mb: u64,
+    /// Number of rotated log files to keep
+    pub max_rotated_files: usize,
+    /// Whether to enable log file monitoring
+    pub enable_file_monitoring: bool,
+    /// Log file monitoring interval in seconds
+    pub file_monitoring_interval: u64,
+}
+
+impl Default for AdvancedLoggingConfig {
+    fn default() -> Self {
+        Self {
+            rotation_strategy: "daily".to_string(),
+            rotation_interval_hours: 24,
+            compress_rotated_logs: true,
+            compression_level: 6,
+            include_hostname: true,
+            include_pid: true,
+            custom_format: None,
+            enable_buffering: true,
+            buffer_size_bytes: 64 * 1024, // 64KB
+            max_file_size_mb: 100,
+            max_rotated_files: 10,
+            enable_file_monitoring: true,
+            file_monitoring_interval: 300, // 5 minutes
+        }
+    }
+}
+
+/// Performance monitoring configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MonitoringConfig {
+    /// Whether to enable performance monitoring
+    pub enabled: bool,
+    /// Monitoring interval in seconds
+    pub interval_seconds: u64,
+    /// Whether to collect memory usage statistics
+    pub collect_memory_stats: bool,
+    /// Whether to collect CPU usage statistics
+    pub collect_cpu_stats: bool,
+    /// Whether to collect network statistics
+    pub collect_network_stats: bool,
+    /// Whether to collect disk I/O statistics
+    pub collect_disk_stats: bool,
+    /// Maximum number of historical data points to keep
+    pub max_history_points: usize,
+    /// Whether to export metrics via HTTP endpoint
+    pub http_metrics: bool,
+    /// HTTP metrics port
+    pub http_metrics_port: u16,
+}
+
+impl Default for MonitoringConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            interval_seconds: 60,
+            collect_memory_stats: true,
+            collect_cpu_stats: true,
+            collect_network_stats: true,
+            collect_disk_stats: true,
+            max_history_points: 1000,
+            http_metrics: false,
+            http_metrics_port: 9090,
+        }
     }
 }
 

@@ -13,9 +13,8 @@ use std::sync::Arc;
 use tokio::signal;
 use tracing::{error, info};
 
-#[derive(Parser)]
-#[command(name = "kaseeder")]
-#[command(about = "Kaspa DNS Seeder")]
+#[derive(Parser, Clone)]
+#[command(name = "kaseeder", about = "Kaspa DNS Seeder")]
 #[command(version)]
 struct Cli {
     /// Configuration file path
@@ -114,19 +113,45 @@ async fn main() -> Result<()> {
     // Parse command line arguments
     let cli = Cli::parse();
 
-    // Initialize logging with custom configuration
+    // Load configuration first to get logging settings
+    let config = if let Some(config_path) = &cli.config {
+        Config::load_from_file(config_path)?
+    } else {
+        Config::try_load_default()?
+    };
+
+    // Apply CLI overrides
+    let config = config.with_cli_overrides(cli.clone().into())?;
+
+    // Initialize logging with configuration
     let mut logging_config = LoggingConfig::default();
+    
+    // Apply CLI overrides to logging
     if let Some(log_level) = &cli.log_level {
         logging_config.level = log_level.clone();
     }
     if let Some(nologfiles) = cli.nologfiles {
         logging_config.no_log_files = nologfiles;
     }
+    
+    // Apply advanced logging configuration from main config
+    logging_config.rotation_strategy = config.advanced_logging.rotation_strategy.clone();
+    logging_config.rotation_interval_hours = config.advanced_logging.rotation_interval_hours;
+    logging_config.compress_rotated_logs = config.advanced_logging.compress_rotated_logs;
+    logging_config.compression_level = config.advanced_logging.compression_level;
+    logging_config.include_hostname = config.advanced_logging.include_hostname;
+    logging_config.include_pid = config.advanced_logging.include_pid;
+    logging_config.custom_format = config.advanced_logging.custom_format.clone();
+    logging_config.enable_buffering = config.advanced_logging.enable_buffering;
+    logging_config.buffer_size_bytes = config.advanced_logging.buffer_size_bytes;
+    logging_config.max_file_size_mb = config.advanced_logging.max_file_size_mb;
+    logging_config.max_files = config.advanced_logging.max_rotated_files;
 
     // Initialize logging system
     kaseeder::logging::init_logging_with_config(logging_config)?;
 
     info!("Starting Kaspa DNS Seeder...");
+    info!("Log rotation: {}", config.advanced_logging.rotation_strategy);
 
     // Check if this is a diagnose command first
     if let Some(address) = &cli.diagnose {
@@ -144,16 +169,6 @@ async fn main() -> Result<()> {
         println!("{}", result);
         return Ok(());
     }
-
-    // Load configuration (only for normal operation)
-    let config = if let Some(config_path) = &cli.config {
-        Config::load_from_file(config_path)?
-    } else {
-        Config::try_load_default()?
-    };
-
-    // Apply CLI overrides
-    let config = config.with_cli_overrides(cli.into())?;
 
     // Display configuration
     config.display();

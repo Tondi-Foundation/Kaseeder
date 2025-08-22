@@ -43,7 +43,20 @@ impl SystemMonitor {
         Self {
             start_time: SystemTime::now(),
             health_status: Arc::new(Mutex::new(HealthStatus::new())),
-            logging_stats: Arc::new(Mutex::new(LoggingStats::default())),
+            logging_stats: Arc::new(Mutex::new(LoggingStats {
+                total_logs: 0,
+                error_logs: 0,
+                warning_logs: 0,
+                info_logs: 0,
+                debug_logs: 0,
+                trace_logs: 0,
+                last_log_time: None,
+                log_rate_per_minute: 0.0,
+                total_rotations: 0,
+                last_rotation_time: None,
+                total_compressed_files: 0,
+                total_disk_usage_bytes: 0,
+            })),
             performance_metrics: Arc::new(Mutex::new(PerformanceMetrics::default())),
         }
     }
@@ -208,6 +221,10 @@ impl SystemMonitor {
                 trace_logs: guard.trace_logs,
                 last_log_time: guard.last_log_time,
                 log_rate_per_minute: guard.log_rate_per_minute,
+                total_rotations: guard.total_rotations,
+                last_rotation_time: guard.last_rotation_time,
+                total_compressed_files: guard.total_compressed_files,
+                total_disk_usage_bytes: guard.total_disk_usage_bytes,
             };
             stats
         };

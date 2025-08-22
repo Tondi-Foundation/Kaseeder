@@ -1,4 +1,4 @@
-use crate::constants::DEFAULT_MAX_ADDRESSES;
+
 use crate::errors::Result;
 use crate::types::{CrawlerStats, NetAddress};
 use tracing::{debug, error, info};
@@ -13,17 +13,11 @@ use tokio::sync::mpsc;
 const PEERS_FILENAME: &str = "peers.json";
 const DEFAULT_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(60 * 60); // 1 hour (same as Go version)
 const DEFAULT_STALE_BAD_TIMEOUT: Duration = Duration::from_secs(2 * 60 * 60); // 2 hours (same as Go version)
-const NEW_NODE_POLL_INTERVAL: Duration = Duration::from_secs(5 * 60); // New node poll interval: 5 minutes
+
 
 // Development mode constants (for local testing)
 #[cfg(debug_assertions)]
-const DEV_NODE_POLL_INTERVAL: Duration = Duration::from_secs(5); // 5 seconds for development
-#[cfg(debug_assertions)]
 const DEV_STALE_GOOD_TIMEOUT: Duration = Duration::from_secs(30); // 30 seconds for development
-
-const QUALITY_DECAY_FACTOR: f64 = 0.95; // Quality score decay factor
-const MAX_QUALITY_SCORE: f64 = 1.0; // Maximum quality score
-const MIN_QUALITY_SCORE: f64 = 0.0; // Minimum quality score
 const PRUNE_EXPIRE_TIMEOUT: Duration = Duration::from_secs(8 * 60 * 60); // 8 hours, same as Go version
 const PRUNE_ADDRESS_INTERVAL: Duration = Duration::from_secs(60); // 1 minute (same as Go version)
 const DUMP_ADDRESS_INTERVAL: Duration = Duration::from_secs(2 * 60); // 2 minutes (same as Go version)
@@ -205,7 +199,7 @@ impl AddressManager {
         _default_port: u16,
         accept_unroutable: bool,
     ) -> usize {
-        let mut count = 0;
+        let mut _count = 0;
 
         for address in addresses {
             // Check port and routability
@@ -222,11 +216,11 @@ impl AddressManager {
                 // Create a new node
                 let node = Node::new(address);
                 self.nodes.insert(addr_str, node);
-                count += 1;
+                _count += 1;
             }
         }
 
-        count
+        _count
     }
 
     /// Get addresses that need to be retested - aligned with Go version logic
@@ -340,7 +334,7 @@ impl AddressManager {
         subnetwork_id: Option<&str>,
     ) -> Vec<NetAddress> {
         let mut addresses = Vec::new();
-        let mut count = 0;
+        let mut _count = 0;
         let mut total_nodes = 0;
         let mut good_nodes = 0;
         let mut stale_nodes = 0;
@@ -380,11 +374,11 @@ impl AddressManager {
             if self.is_good(node) {
                 good_nodes += 1;
                 addresses.push(node.address.clone());
-                count += 1;
+                _count += 1;
             } else if self.is_stale(node) {
                 stale_nodes += 1;
                 addresses.push(node.address.clone());
-                count += 1;
+                _count += 1;
             } else {
                 bad_nodes += 1;
             }
@@ -432,7 +426,9 @@ impl AddressManager {
                     self.prune_peers();
                 }
                 _ = dump_ticker.tick() => {
-                    self.save_peers();
+                    if let Err(e) = self.save_peers() {
+                        error!("Failed to save peers: {}", e);
+                    }
                 }
             }
         }
@@ -484,13 +480,13 @@ impl AddressManager {
     }
 
     /// Save addresses to file
-    fn save_peers(&self) {
+    fn save_peers(&self) -> Result<()> {
         // Ensure the directory exists before writing files
         if let Some(parent_dir) = std::path::Path::new(&self.peers_file).parent() {
-            if let Err(e) = std::fs::create_dir_all(parent_dir) {
-                error!("Failed to create directory {}: {}", parent_dir.display(), e);
-                return;
-            }
+                    if let Err(e) = std::fs::create_dir_all(parent_dir) {
+            error!("Failed to create directory {}: {}", parent_dir.display(), e);
+            return Err(crate::errors::KaseederError::Io(e));
+        }
         }
 
         let nodes: Vec<_> = self
@@ -503,15 +499,18 @@ impl AddressManager {
         let tmp_file = format!("{}.new", self.peers_file);
 
         // Check if we can write to the temporary file
-        if let Err(e) = std::fs::write(&tmp_file, serde_json::to_string(&nodes).unwrap_or_default()) {
+        let serialized_nodes = serde_json::to_string(&nodes)
+            .map_err(|e| crate::errors::KaseederError::Serialization(format!("Failed to serialize nodes: {}", e)))?;
+        
+        if let Err(e) = std::fs::write(&tmp_file, serialized_nodes) {
             error!("Failed to write temporary file {}: {}", tmp_file, e);
-            return;
+            return Err(crate::errors::KaseederError::Io(e));
         }
 
         // Verify temporary file was created and has content
         if !std::path::Path::new(&tmp_file).exists() {
             error!("Temporary file {} was not created", tmp_file);
-            return;
+            return Err(crate::errors::KaseederError::Config("Temporary file creation failed".to_string()));
         }
 
         // Atomically rename file
@@ -524,9 +523,12 @@ impl AddressManager {
             if let Err(cleanup_e) = std::fs::remove_file(&tmp_file) {
                 error!("Failed to remove temporary file {}: {}", tmp_file, cleanup_e);
             }
+            return Err(crate::errors::KaseederError::Io(e));
         } else {
             debug!("Successfully saved {} nodes to {}", nodes.len(), self.peers_file);
         }
+        
+        Ok(())
     }
 
     /// Load addresses from file
@@ -557,7 +559,7 @@ impl AddressManager {
     /// Check if node is good - aligned with Go version
     fn is_good(&self, node: &Node) -> bool {
         // Check if it's not a non-default port (like Go version)
-        if self.is_non_default_port(&node.address) {
+        if self.is_nondefault_port(&node.address) {
             return false;
         }
 
@@ -647,7 +649,7 @@ impl AddressManager {
     }
 
     /// Check if address is non-default port (like Go version)
-    fn is_non_default_port(&self, address: &NetAddress) -> bool {
+    fn is_nondefault_port(&self, address: &NetAddress) -> bool {
         // Check against the network's default port from configuration
         address.port != self.default_port
     }
@@ -678,7 +680,9 @@ impl Clone for AddressManager {
 impl Drop for AddressManager {
     fn drop(&mut self) {
         // Ensure addresses are saved when exiting
-        self.save_peers();
+        if let Err(e) = self.save_peers() {
+            error!("Failed to save peers during shutdown: {}", e);
+        }
     }
 }
 
@@ -708,7 +712,7 @@ mod tests {
         assert_eq!(manager.peers_file, expected_peers_file.to_string_lossy());
 
         // Test saving peers (this should not fail due to directory issues)
-        manager.save_peers();
+        manager.save_peers().unwrap();
 
         // Verify the peers file was created
         assert!(expected_peers_file.exists());
@@ -731,7 +735,7 @@ mod tests {
         assert!(test_app_dir.exists());
 
         // Test saving peers - this should create the directory structure
-        manager.save_peers();
+        manager.save_peers().unwrap();
 
         // Verify the peers file was created in the nested directory
         let expected_peers_file = test_app_dir.join("peers.json");
