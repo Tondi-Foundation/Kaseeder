@@ -13,10 +13,10 @@ impl DnsSeedDiscovery {
     ) -> Vec<String> {
         match params {
             crate::config::NetworkParams::Mainnet { .. } => vec![
-                // Kaspa官方DNS种子服务器（活跃的v7节点）
+                // Kaspa Official DNS Seeders
                 "seeder.kaspad.net".to_string(),
                 "seeder.kaspanet.org".to_string(),
-                // 主要DNS种子服务器（已验证可用）
+                // Mainnet DNS Seeders (Verified to be usable)
                 "seeder1.kaspad.net".to_string(),
                 "seeder2.kaspad.net".to_string(),
                 "seeder3.kaspad.net".to_string(),
@@ -25,7 +25,7 @@ impl DnsSeedDiscovery {
                 "n-mainnet.kaspa.ws".to_string(),
             ],
             crate::config::NetworkParams::Testnet { suffix, .. } => vec![
-                // For testnet, we'll use mainnet seeders as fallback
+                // For Testnet, we'll use mainnet seeders as fallback
                 // since testnet seeders seem to be unavailable
                 format!("seed{}.testnet.kaspa.org", suffix),
                 // Fallback to mainnet seeders for testnet
